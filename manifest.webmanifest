@@ -1,0 +1,11 @@
+{
+  "name": "Nghe — Vietnamese listening drill",
+  "short_name": "Nghe",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#101726",
+  "theme_color": "#101726",
+  "icons": [
+    {"src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}
+  ]
+}
