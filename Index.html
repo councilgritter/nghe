@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nghe — Vietnamese listening drill</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#101726">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#101726; --slate:#1a2434; --edge:#2b3a50; --muted:#8496ae;
+  --paper:#efebe1; --onpaper:#17212f;
+  --amber:#f0b429; --ok:#43a67c; --no:#d9534a;
+  --pad: clamp(12px, 3.5vw, 22px);
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+*,*::before,*::after{box-sizing:inherit}
+html,body{height:100%}
+body{
+  margin:0; background:var(--ink); color:#e6ecf5;
+  font-family:'Be Vietnam Pro',system-ui,-apple-system,'Segoe UI',sans-serif;
+  font-weight:400; -webkit-font-smoothing:antialiased;
+  overscroll-behavior:none;
+}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
+
+#app{display:flex;flex-direction:column;height:100%;max-width:560px;margin:0 auto;padding:0 var(--pad)}
+
+/* --- status strip --- */
+.strip{display:flex;align-items:center;gap:var(--pad);padding:14px 2px 10px;font-size:13px;color:var(--muted)}
+.strip b{color:#e6ecf5;font-weight:600}
+.strip .sp{flex:1}
+.gear{padding:6px;border-radius:8px;line-height:0}
+.gear svg{width:20px;height:20px;stroke:var(--muted);fill:none;stroke-width:1.7}
+
+/* --- the play control: this is the question --- */
+.stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;min-height:0}
+.play{
+  width:clamp(104px,30vw,136px); aspect-ratio:1; border-radius:50%;
+  background:var(--amber); color:#241a00;
+  display:grid;place-items:center;
+  box-shadow:0 0 0 0 rgba(240,180,41,.45);
+  transition:transform .12s ease, box-shadow .5s ease;
+}
+.play:active{transform:scale(.95)}
+.play.ring{animation:ring 1.1s ease-out}
+@keyframes ring{from{box-shadow:0 0 0 0 rgba(240,180,41,.45)}to{box-shadow:0 0 0 26px rgba(240,180,41,0)}}
+.play svg{width:42%;height:42%;fill:currentColor}
+.sub{display:flex;gap:10px}
+.sub button{
+  font-size:13px;color:var(--muted);padding:7px 14px;border-radius:999px;
+  border:1px solid var(--edge);
+}
+.sub button:hover{color:#e6ecf5;border-color:var(--muted)}
+.prompt{font-size:13px;color:var(--muted);text-align:center;min-height:1.2em}
+
+/* --- answer tiles: the diacritics are the content --- */
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding-bottom:14px}
+.tile{
+  background:var(--paper);color:var(--onpaper);
+  border-radius:14px;padding:22px 10px;
+  font-size:clamp(26px,8.5vw,38px);font-weight:600;line-height:1.15;
+  min-height:92px;display:grid;place-items:center;
+  transition:transform .12s ease, background .18s ease, color .18s ease;
+}
+.tile:active{transform:scale(.97)}
+.tile[disabled]{cursor:default}
+.tile.correct{background:var(--ok);color:#06231a}
+.tile.wrong{background:var(--no);color:#2d0704}
+.tile.dim{background:#c9c4b8;color:#5b6472}
+.tile.playable{cursor:pointer}
+.tile.playing{box-shadow:inset 0 0 0 3px var(--amber)}
+
+/* --- verdict line --- */
+.verdict{display:flex;align-items:center;gap:12px;padding:0 2px 16px;min-height:44px;font-size:14px}
+.verdict .lab{color:var(--muted);flex:1}
+.verdict .lab b{color:#e6ecf5;font-weight:600}
+.next{background:#e6ecf5;color:var(--ink);font-weight:600;padding:11px 22px;border-radius:10px}
+
+/* --- settings --- */
+.sheet{
+  position:fixed;inset:0;background:var(--ink);z-index:10;overflow-y:auto;
+  padding:calc(env(safe-area-inset-top,0px) + 18px) var(--pad) calc(env(safe-area-inset-bottom,0px) + 28px);
+  display:none;
+}
+.sheet.open{display:block}
+.sheet .wrap{max-width:560px;margin:0 auto}
+.sheet h2{font-size:19px;font-weight:800;margin:0 0 4px}
+.sheet h3{font-size:12px;font-weight:600;color:var(--muted);margin:26px 0 10px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{padding:9px 15px;border-radius:999px;border:1px solid var(--edge);font-size:14px;color:var(--muted)}
+.chip.on{background:#e6ecf5;color:var(--ink);border-color:#e6ecf5;font-weight:600}
+.row{display:flex;align-items:center;gap:12px;font-size:14px;color:var(--muted);margin-top:12px}
+input[type=range]{flex:1;accent-color:var(--amber)}
+.stats{margin-top:10px;font-size:14px}
+.stats div{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--slate)}
+.stats .n{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+.bar{flex:1;height:5px;background:var(--slate);border-radius:3px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--ok)}
+.bar i.bad{background:var(--no)}
+.note{font-size:13px;color:var(--muted);line-height:1.55;margin-top:10px}
+.note code{background:var(--slate);padding:1px 5px;border-radius:4px;font-size:12px}
+.close{margin-top:28px;background:#e6ecf5;color:var(--ink);font-weight:600;padding:12px 0;border-radius:10px;width:100%}
+.danger{margin-top:10px;color:var(--no);font-size:13px;padding:10px 0;width:100%;border:1px solid var(--edge);border-radius:10px}
+.loading{padding:60px 0;text-align:center;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="strip">
+    <span>Streak <b id="streak">0</b></span>
+    <span>Today <b id="today">0</b></span>
+    <span>Correct <b id="acc">–</b></span>
+    <span class="sp"></span>
+    <button class="gear" id="gear" aria-label="Settings">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.6v2.3M12 19.1v2.3M21.4 12h-2.3M4.9 12H2.6M18.6 5.4l-1.6 1.6M7 17l-1.6 1.6M18.6 18.6L17 17M7 7L5.4 5.4"/></svg>
+    </button>
+  </div>
+
+  <div class="stage">
+    <button class="play" id="play" aria-label="Play the sound">
+      <svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z"/></svg>
+    </button>
+    <div class="sub">
+      <button id="again">Again</button>
+      <button id="slow">Slower</button>
+    </div>
+    <p class="prompt" id="prompt">Listen, then pick what you heard.</p>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="verdict">
+    <span class="lab" id="lab"></span>
+    <button class="next" id="next" hidden>Next</button>
+  </div>
+</div>
+
+<div class="sheet" id="sheet">
+ <div class="wrap">
+  <h2>Settings</h2>
+  <p class="note" id="audioNote"></p>
+
+  <h3>What to drill</h3>
+  <div class="chips" id="axisChips"></div>
+
+  <h3>Difficulty</h3>
+  <div class="chips" id="diffChips"></div>
+
+  <h3>Accent</h3>
+  <div class="chips" id="regionChips"></div>
+  <p class="note" id="regionNote"></p>
+
+  <h3>Vocabulary range</h3>
+  <div class="row">
+    <input type="range" id="rank" min="200" max="3000" step="100">
+    <span id="rankVal" style="min-width:8.5em;text-align:right"></span>
+  </div>
+  <p class="note">Lower means commoner words. The top 2,000 syllables cover most everyday speech.</p>
+
+  <h3>Your weakest contrasts</h3>
+  <div class="stats" id="stats"></div>
+
+  <h3>About the audio</h3>
+  <p class="note">The voices in this app are generated by AI, not recorded by a
+  person. They are made with <a href="https://github.com/pnnbao97/VieNeu-TTS"
+  style="color:var(--amber)">VieNeu-TTS</a>, an open Vietnamese speech model, and
+  checked against <a href="https://huggingface.co/vinai/PhoWhisper-small"
+  style="color:var(--amber)">PhoWhisper</a>. No real person's voice is imitated.
+  The syllable list comes from
+  <a href="https://www.hieuthi.com/blog/2017/04/03/vietnamese-syllables-usage.html"
+  style="color:var(--amber)">Luong Hieu Thi's corpus study</a>.</p>
+  <p class="note">Synthetic speech is good enough to train your ear on these
+  contrasts, but it is not a native speaker. If something sounds wrong to you,
+  check with one.</p>
+
+  <button class="close" id="close">Back to drilling</button>
+  <button class="danger" id="reset">Erase all progress</button>
+ </div>
+</div>
+
+<script>
+const S = {
+  data:null, item:null, opts:[], answered:false,
+  streak:0, today:0, right:0, seen:0,
+  audioOK:null, voice:null, rate:1,
+  stats: JSON.parse(localStorage.getItem('vn.stats') || '{}'),
+  cfg: Object.assign(
+    {axes:[0,1,2,3], diffs:[1,2], rank:1200, region:'flat'},
+    JSON.parse(localStorage.getItem('vn.cfg') || '{}')),
+};
+const $ = id => document.getElementById(id);
+const saveCfg = () => localStorage.setItem('vn.cfg', JSON.stringify(S.cfg));
+const saveStats = () => localStorage.setItem('vn.stats', JSON.stringify(S.stats));
+
+/* ---------- audio ---------- */
+const cache = new Map();
+function clipUrl(sylIdx){
+  const id = S.data.clips[sylIdx];
+  return S.cfg.region === 'flat' ? 'audio/' + id + '.mp3'
+                                 : 'audio/' + S.cfg.region + '/' + id + '.mp3';
+}
+// if a region folder isn't there yet, quietly fall back to the flat folder
+function fallbackUrl(sylIdx){ return 'audio/' + S.data.clips[sylIdx] + '.mp3'; }
+
+function speak(text){
+  if(!('speechSynthesis' in window)) return false;
+  const v = S.voice;
+  if(!v) return false;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.voice = v; u.lang = v.lang; u.rate = S.rate * 0.9;
+  speechSynthesis.speak(u);
+  return true;
+}
+
+function play(sylIdx, tile){
+  const url = clipUrl(sylIdx);
+  let a = cache.get(url);
+  if(!a){ a = new Audio(url); a.preload='auto'; cache.set(url,a); }
+  a.playbackRate = S.rate;
+  a.currentTime = 0;
+  if(tile){ tile.classList.add('playing'); a.onended = () => tile.classList.remove('playing'); }
+  a.play().then(()=>{ S.audioOK = true; })
+   .catch(()=>{
+      const alt = fallbackUrl(sylIdx);
+      if(alt !== url){
+        let b = cache.get(alt);
+        if(!b){ b = new Audio(alt); b.preload='auto'; cache.set(alt,b); }
+        b.playbackRate = S.rate; b.currentTime = 0;
+        if(tile){ b.onended = () => tile.classList.remove('playing'); }
+        b.play().then(()=>{ S.audioOK = true; }).catch(()=>{
+          S.audioOK = false;
+          if(tile) tile.classList.remove('playing');
+          speak(S.data.syllables[sylIdx]); noteAudio();
+        });
+        return;
+      }
+      S.audioOK = false;
+      if(tile) tile.classList.remove('playing');
+      speak(S.data.syllables[sylIdx]);
+      noteAudio();
+   });
+}
+
+function pickVoice(){
+  const vs = speechSynthesis.getVoices ? speechSynthesis.getVoices() : [];
+  S.voice = vs.find(v => /^vi/i.test(v.lang)) || null;
+  noteAudio();
+}
+function noteAudio(){
+  const el = $('audioNote'); if(!el) return;
+  if(S.audioOK) { el.textContent = 'Playing your generated clips.'; return; }
+  el.innerHTML = S.voice
+    ? 'No clip files found, so this is using your device\u2019s built-in Vietnamese voice. Quality on single syllables is unreliable \u2014 add the <code>audio/</code> folder for the real thing.'
+    : 'No clip files and no Vietnamese voice on this device. Add the <code>audio/</code> folder, or install a Vietnamese voice in your system settings.';
+}
+
+/* ---------- question selection ---------- */
+function key(it){ return it[6]; }
+function weight(it){
+  const st = S.stats[key(it)];
+  if(!st || st.n < 3) return 3;               // favour contrasts you haven't met
+  return 1 + 7 * (st.wrong / st.n);           // then favour the ones you fail
+}
+function pool(){
+  return S.data.items.filter(it =>
+    S.cfg.axes.includes(it[4]) &&
+    S.cfg.diffs.includes(it[5]) &&
+    it[7] <= S.cfg.rank && !it[8]);
+}
+function pick(){
+  const p = pool();
+  if(!p.length) return null;
+  const sample = [];
+  for(let i=0;i<24;i++) sample.push(p[(Math.random()*p.length)|0]);
+  let best = sample[0], bw = -1;
+  for(const it of sample){
+    const w = weight(it) * (0.65 + Math.random()*0.7);
+    if(w > bw){ bw = w; best = it; }
+  }
+  return best;
+}
+
+/* ---------- rendering ---------- */
+function shuffle(a){ for(let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]];} return a; }
+
+function newQuestion(){
+  const it = pick();
+  if(!it){
+    $('grid').innerHTML = '';
+    $('prompt').textContent = 'Nothing matches those settings. Widen them and come back.';
+    S.item = null; return;
+  }
+  S.item = it; S.answered = false; S.rate = 1;
+  S.opts = shuffle([it[0], it[1], it[2], it[3]]);
+  $('next').hidden = true;
+  $('lab').textContent = '';
+  $('prompt').textContent = 'Listen, then pick what you heard.';
+
+  const g = $('grid'); g.innerHTML = '';
+  S.opts.forEach((sylIdx, i) => {
+    const b = document.createElement('button');
+    b.className = 'tile';
+    b.textContent = S.data.syllables[sylIdx];
+    b.onclick = () => S.answered ? play(sylIdx, b) : answer(i, b);
+    g.appendChild(b);
+  });
+  // warm the cache for every option so the A/B comparison is instant
+  S.opts.forEach(s => { const u = clipUrl(s); if(!cache.has(u)){ const a=new Audio(u); a.preload='auto'; cache.set(u,a);} });
+  setTimeout(() => replay(), 220);
+}
+
+function replay(){
+  if(!S.item) return;
+  const p = $('play'); p.classList.remove('ring'); void p.offsetWidth; p.classList.add('ring');
+  play(S.item[0]);
+}
+
+function answer(i, btn){
+  S.answered = true;
+  const chosen = S.opts[i], target = S.item[0];
+  const ok = chosen === target;
+  const k = key(S.item);
+  const st = S.stats[k] || (S.stats[k] = {n:0, wrong:0});
+  st.n++; if(!ok) st.wrong++;
+  saveStats();
+
+  S.seen++; S.today++; if(ok) S.right++;
+  S.streak = ok ? S.streak + 1 : 0;
+
+  [...$('grid').children].forEach((el, j) => {
+    el.classList.add('playable');
+    const s = S.opts[j];
+    if(s === target) el.classList.add('correct');
+    else if(j === i) el.classList.add('wrong');
+    else el.classList.add('dim');
+  });
+
+  const c = S.data.contrasts[k];
+  $('lab').innerHTML = (ok ? 'Right. ' : 'It was <b>' + S.data.syllables[target] + '</b>. ')
+    + c.label.replace(' / ', ' vs ');
+  $('prompt').textContent = 'Tap any tile to hear it.';
+  $('next').hidden = false;
+  if(ok) setTimeout(() => { if(S.answered) newQuestion(); }, 900);
+  paintStrip();
+}
+
+function paintStrip(){
+  $('streak').textContent = S.streak;
+  $('today').textContent = S.today;
+  $('acc').textContent = S.seen ? Math.round(100*S.right/S.seen) + '%' : '–';
+}
+
+/* ---------- settings ---------- */
+function chips(host, labels, sel, on){
+  host.innerHTML = '';
+  labels.forEach((t, i) => {
+    const b = document.createElement('button');
+    b.className = 'chip' + (sel().includes(i) ? ' on' : '');
+    b.textContent = t;
+    b.onclick = () => { on(i); saveCfg(); buildSheet(); };
+    host.appendChild(b);
+  });
+}
+function toggle(arr, i){
+  const k = arr.indexOf(i);
+  if(k < 0) arr.push(i); else if(arr.length > 1) arr.splice(k, 1);
+}
+function buildSheet(){
+  chips($('axisChips'), ['Tones','Vowels','First sound','Final sound'],
+        () => S.cfg.axes, i => toggle(S.cfg.axes, i));
+  chips($('diffChips'), ['Easy','Medium','Hard'],
+        () => S.cfg.diffs, i => toggle(S.cfg.diffs, i));
+
+  const REGIONS = [['flat','Default'],['south','Southern'],
+                   ['central','Central'],['north','Northern']];
+  const rh = $('regionChips'); rh.innerHTML = '';
+  REGIONS.forEach(([id,label]) => {
+    const b = document.createElement('button');
+    b.className = 'chip' + (S.cfg.region === id ? ' on' : '');
+    b.textContent = label;
+    b.onclick = () => { S.cfg.region = id; saveCfg(); cache.clear(); buildSheet(); };
+    rh.appendChild(b);
+  });
+  $('regionNote').textContent = S.cfg.region === 'flat'
+    ? 'Using whichever clips are in the audio folder.'
+    : 'Falls back to the default clips for anything not generated in this accent yet.';
+  $('rank').value = S.cfg.rank;
+  $('rankVal').textContent = 'top ' + S.cfg.rank.toLocaleString();
+
+  const rows = Object.entries(S.stats)
+    .filter(([,v]) => v.n >= 4)
+    .map(([k,v]) => ({label: S.data.contrasts[k].label, ...v, r: v.wrong/v.n}))
+    .sort((a,b) => b.r - a.r).slice(0, 12);
+  const host = $('stats');
+  host.innerHTML = rows.length ? '' :
+    '<p class="note">Answer a few dozen questions and your weak spots will show up here.</p>';
+  rows.forEach(r => {
+    const pct = Math.round(100*(1-r.r));
+    const d = document.createElement('div');
+    d.innerHTML = '<span style="flex:0 0 42%">' + r.label + '</span>'
+      + '<span class="bar"><i class="' + (pct<70?'bad':'') + '" style="width:' + pct + '%"></i></span>'
+      + '<span class="n">' + pct + '% of ' + r.n + '</span>';
+    host.appendChild(d);
+  });
+  noteAudio();
+}
+
+/* ---------- wiring ---------- */
+$('play').onclick = replay;
+$('again').onclick = replay;
+$('slow').onclick = () => { S.rate = S.rate === 1 ? 0.65 : 1; $('slow').textContent = S.rate === 1 ? 'Slower' : 'Normal'; replay(); };
+$('next').onclick = newQuestion;
+$('gear').onclick = () => { buildSheet(); $('sheet').classList.add('open'); };
+$('close').onclick = () => { $('sheet').classList.remove('open'); };
+$('rank').oninput = e => { S.cfg.rank = +e.target.value; $('rankVal').textContent = 'top ' + S.cfg.rank.toLocaleString(); saveCfg(); };
+$('reset').onclick = () => {
+  if(!confirm('Erase every score and start over?')) return;
+  S.stats = {}; saveStats(); S.seen = S.right = S.today = S.streak = 0; paintStrip(); buildSheet();
+};
+addEventListener('keydown', e => {
+  if($('sheet').classList.contains('open')) return;
+  if(e.key === ' '){ e.preventDefault(); replay(); }
+  else if(e.key === 'Enter' && S.answered) newQuestion();
+  else if('1234'.includes(e.key)){
+    const i = +e.key - 1, el = $('grid').children[i];
+    if(el) el.click();
+  }
+});
+if('speechSynthesis' in window){ pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
+if('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
+
+fetch('data.json').then(r => r.json()).then(d => {
+  S.data = d;
+  paintStrip();
+  newQuestion();
+}).catch(() => {
+  $('prompt').textContent = 'Could not load data.json. Check it sits next to index.html.';
+});
+</script>
+</body>
+</html>
