@@ -1,5 +1,8 @@
-// Cache the app shell up front; cache audio clips the first time each is heard.
-const SHELL = 'nghe-shell-v1';
+// Cache the app shell up front and keep it fresh: the shell is fetched from the network
+// first and the cache is only the offline fallback. Audio clips are cached the first time
+// each is heard.
+// Bump SHELL when the caching logic changes so installed copies drop the old cache.
+const SHELL = 'nghe-shell-v2';
 const CLIPS = 'nghe-clips-v1';
 const FILES = ['./', 'index.html', 'data.json', 'manifest.webmanifest', 'icon.svg'];
 
@@ -28,5 +31,8 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  e.respondWith(caches.match(e.request).then(hit => hit || fetch(e.request)));
+  e.respondWith(fetch(e.request).then(res => {          // shell: network first, cache if offline
+    if (res.ok) { const copy = res.clone(); caches.open(SHELL).then(c => c.put(e.request, copy)); }
+    return res;
+  }).catch(() => caches.match(e.request)));
 });
