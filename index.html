@@ -194,9 +194,11 @@ const S = {
   audioOK:null, voice:null, rate:1,
   stats: JSON.parse(localStorage.getItem('vn.stats') || '{}'),
   cfg: Object.assign(
-    {axes:[0,1,2,3], diffs:[1,2], rank:1200, region:'flat'},
+    {axes:[0,1,2,3], diffs:[1,2], rank:1200, region:'south'},
     JSON.parse(localStorage.getItem('vn.cfg') || '{}')),
 };
+// accents were reworked to south/north only; retire old saved values
+if(S.cfg.region !== 'south' && S.cfg.region !== 'north') S.cfg.region = 'south';
 const $ = id => document.getElementById(id);
 const saveCfg = () => localStorage.setItem('vn.cfg', JSON.stringify(S.cfg));
 const saveStats = () => localStorage.setItem('vn.stats', JSON.stringify(S.stats));
@@ -205,10 +207,9 @@ const saveStats = () => localStorage.setItem('vn.stats', JSON.stringify(S.stats)
 const cache = new Map();
 function clipUrl(sylIdx){
   const id = S.data.clips[sylIdx];
-  return S.cfg.region === 'flat' ? 'audio/' + id + '.mp3'
-                                 : 'audio/' + S.cfg.region + '/' + id + '.mp3';
+  return 'audio/' + S.cfg.region + '/' + id + '.mp3';
 }
-// if a region folder isn't there yet, quietly fall back to the flat folder
+// if this accent's clip isn't there yet, quietly fall back to the old flat folder
 function fallbackUrl(sylIdx){ return 'audio/' + S.data.clips[sylIdx] + '.mp3'; }
 
 function speak(text){
@@ -381,8 +382,7 @@ function buildSheet(){
   chips($('diffChips'), ['Easy','Medium','Hard'],
         () => S.cfg.diffs, i => toggle(S.cfg.diffs, i));
 
-  const REGIONS = [['flat','Default'],['south','Southern'],
-                   ['central','Central'],['north','Northern']];
+  const REGIONS = [['south','Southern'],['north','Northern']];
   const rh = $('regionChips'); rh.innerHTML = '';
   REGIONS.forEach(([id,label]) => {
     const b = document.createElement('button');
@@ -391,9 +391,8 @@ function buildSheet(){
     b.onclick = () => { S.cfg.region = id; saveCfg(); cache.clear(); buildSheet(); };
     rh.appendChild(b);
   });
-  $('regionNote').textContent = S.cfg.region === 'flat'
-    ? 'Using whichever clips are in the audio folder.'
-    : 'Falls back to the default clips for anything not generated in this accent yet.';
+  $('regionNote').textContent =
+    'Falls back to the older clips for anything not generated in this accent yet.';
   $('rank').value = S.cfg.rank;
   $('rankVal').textContent = 'top ' + S.cfg.rank.toLocaleString();
 

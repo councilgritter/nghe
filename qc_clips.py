@@ -16,13 +16,20 @@ import argparse, csv, os, unicodedata
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--manifest', default='vietnamese_clip_manifest.csv')
-ap.add_argument('--outdir', default='audio')
+ap.add_argument('--region', choices=['south', 'north'],
+                help='check audio/<region>/ and write qc_report_<region>.csv')
+ap.add_argument('--outdir', default=None)
+ap.add_argument('--report', default=None)
 ap.add_argument('--format', default='mp3')
 ap.add_argument('--model', default='vinai/PhoWhisper-small')
 ap.add_argument('--batch', type=int, default=16)
 ap.add_argument('--fresh', action='store_true',
                 help='ignore an existing qc_report.csv instead of resuming from it')
 args = ap.parse_args()
+if not args.outdir:
+    args.outdir = f'audio/{args.region}' if args.region else 'audio'
+if not args.report:
+    args.report = f'qc_report_{args.region}.csv' if args.region else 'qc_report.csv'
 
 import librosa  # noqa: E402
 import torch  # noqa: E402
@@ -54,7 +61,7 @@ rows = [r for r in rows
         if os.path.exists(os.path.join(args.outdir, f"{r['clip_id']}.{args.format}"))]
 print(f'{len(rows)} clips to check')
 
-REPORT = 'qc_report.csv'
+REPORT = args.report
 out = []
 if os.path.exists(REPORT) and not args.fresh:
     out = list(csv.DictReader(open(REPORT, encoding='utf-8-sig')))
