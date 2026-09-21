@@ -110,11 +110,17 @@ In the **right-hand sidebar**:
 
 Top to bottom. The notebook explains each one. Four things to know:
 
-**Pick a voice per accent in step 4, then audition in step 5.** You choose one
-Southern and one Northern voice, and a speed for each. Step 5 makes 40 clips per
-accent so you can listen before a long run — check the tone you hear matches the
-tone mark, and that the accent sounds right. Change a voice or speed and re-run
-until you're happy; nothing is committed yet.
+**The voices are already chosen — audition them in step 5.** Adam (Southern) and
+Ngọc Huyền (Northern) come set in the notebook; you can swap either from the list
+step 4 prints. Each accent has two speeds: one for the level tones and a slightly
+slower one for the contour tones hỏi and ngã, whose shape is harder to catch.
+Step 5 makes 40 clips per accent with the real pipeline so you can listen before
+a long run. Change a voice or a speed, re-run, and iterate; nothing is committed yet.
+
+Each clip is one syllable said on its own — trimmed, loudness-matched, padded with
+half a second of silence, then slowed. If the model pads a syllable with a stray
+extra word (it can, on such short input), the clip comes out too long and is
+regenerated automatically.
 
 **The full run in step 6 takes a while and is resumable.** It makes each accent
 in turn — about 6,000 clips each — and pushes each one to GitHub as it finishes.
