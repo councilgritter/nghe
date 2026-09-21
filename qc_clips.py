@@ -15,8 +15,8 @@ especially on low-frequency syllables.
 import argparse, csv, os, unicodedata
 
 ap = argparse.ArgumentParser()
-ap.add_argument('--manifest', default='data/vietnamese_clip_manifest.csv')
-ap.add_argument('--outdir', default='docs/audio')
+ap.add_argument('--manifest', default='vietnamese_clip_manifest.csv')
+ap.add_argument('--outdir', default='audio')
 ap.add_argument('--format', default='mp3')
 ap.add_argument('--model', default='vinai/PhoWhisper-small')
 ap.add_argument('--batch', type=int, default=16)

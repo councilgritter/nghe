@@ -3,7 +3,7 @@
 Generate one audio clip per Vietnamese syllable with VieNeu-TTS.
 https://github.com/pnnbao97/VieNeu-TTS
 
-You do not normally run this by hand — notebooks/build_audio.ipynb calls it.
+You do not normally run this by hand — build_audio.ipynb calls it.
 To run it yourself:
 
     pip install vieneu          # ffmpeg must also be on PATH
@@ -20,8 +20,8 @@ Then the full run (resumable — safe to Ctrl-C and restart):
 import argparse, csv, os, subprocess, sys, time
 
 ap = argparse.ArgumentParser()
-ap.add_argument('--manifest', default='data/vietnamese_clip_manifest.csv')
-ap.add_argument('--outdir', default='docs/audio')
+ap.add_argument('--manifest', default='vietnamese_clip_manifest.csv')
+ap.add_argument('--outdir', default='audio')
 ap.add_argument('--voice', default=None)
 ap.add_argument('--limit', type=int, default=None, help='only the N most frequent syllables')
 ap.add_argument('--batch', type=int, default=16, help='0 disables infer_batch')

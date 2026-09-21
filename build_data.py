@@ -4,7 +4,7 @@ Turn the two CSVs into the compact data.json the app loads.
 
     python build_data.py --items vietnamese_drill_items.csv \
                          --clips vietnamese_clip_manifest.csv \
-                         --out site/data.json
+                         --out data.json
 
 Re-run this whenever you regenerate the CSVs. It does not need the audio to
 exist — the app falls back to browser speech for any clip that is missing.
@@ -12,9 +12,9 @@ exist — the app falls back to browser speech for any clip that is missing.
 import argparse, csv, json, os, unicodedata
 
 ap = argparse.ArgumentParser()
-ap.add_argument('--items', default='data/vietnamese_drill_items.csv')
-ap.add_argument('--clips', default='data/vietnamese_clip_manifest.csv')
-ap.add_argument('--out', default='docs/data.json')
+ap.add_argument('--items', default='vietnamese_drill_items.csv')
+ap.add_argument('--clips', default='vietnamese_clip_manifest.csv')
+ap.add_argument('--out', default='data.json')
 ap.add_argument('--max-rank', type=int, default=3000,
                 help='cap TARGET frequency rank; the corpus tail is noisy')
 ap.add_argument('--drop-merged', action='store_true',

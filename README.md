@@ -22,28 +22,33 @@ came out wrong gets flagged before it reaches the app.
 **The syllable list** is Luong Hieu Thi's
 [corpus study](https://www.hieuthi.com/blog/2017/04/03/vietnamese-syllables-usage.html)
 of five Vietnamese news sites: 7,184 syllables that actually occur in real text,
-ordered by frequency, covering over 94% of content. It's in `data/syllables.txt`.
+ordered by frequency, covering over 94% of content. It's in `syllables.txt`.
 
 ---
 
 ## What's in here
 
-```
-docs/           the app itself — this is what GitHub Pages serves
-  index.html      the whole app, one file
-  data.json       9,006 questions built from the CSVs
-  audio/          generated clips land here (empty until you run the notebook)
-  sw.js           makes the app work offline once you've used it
-data/
-  vietnamese_drill_items.csv     every question, human-readable
-  vietnamese_clip_manifest.csv   every syllable that needs a clip
-  syllables.txt                  the 7,184 attested syllables, commonest first
-scripts/        the generation, checking and build scripts
-notebooks/
-  build_audio.ipynb              the Colab notebook that runs everything
-```
+Everything sits in the repository root, and GitHub Pages serves it as-is. The scripts
+and notebook use these same root-relative paths.
 
-You never need to run the scripts by hand. The notebook calls them.
+```
+index.html                     the whole app, one file
+data.json                      9,006 questions built from the CSVs
+audio/                         the generated clips (v00001.mp3, v00002.mp3, ...)
+sw.js                          makes the app work offline once you've used it
+manifest.webmanifest, icon.svg   what lets you install it on your phone
+
+vietnamese_drill_items.csv     every question, human-readable
+vietnamese_clip_manifest.csv   every syllable that needs a clip
+syllables.txt                  the 7,184 attested syllables, commonest first
+
+build_audio.ipynb              the Colab notebook that runs everything
+parse.py                       splits syllables into onset / nucleus / coda / tone
+generate_clips.py              makes the clips with VieNeu-TTS
+qc_clips.py                    plays every clip back through PhoWhisper
+build_data.py                  turns the two CSVs into data.json
+install_approved.py            Colab cell for swapping in human recordings
+```
 
 ---
 
@@ -52,22 +57,22 @@ You never need to run the scripts by hand. The notebook calls them.
 On GitHub, click **New repository**. Name it `nghe`. Make it **public**
 (GitHub Pages is free for public repos). Don't add a README — you have one.
 
-On the empty repo page, click **uploading an existing file**. Drag the whole
-unzipped folder in. Commit.
+On the empty repo page, click **uploading an existing file**. Drag the files in
+from this folder. Commit.
 
 ## Step 2 — Turn on GitHub Pages
 
 In the repo: **Settings → Pages**.
 
 - Source: **Deploy from a branch**
-- Branch: **main**, folder: **/docs**
+- Branch: **main**, folder: **/ (root)**
 - Save
 
 Wait a minute, then open `https://YOUR-USERNAME.github.io/nghe/`.
 
-The app will already work — it falls back to your device's built-in Vietnamese
-voice. That voice is unreliable on single syllables, which is the whole reason
-for the next steps, but it proves the site is live.
+The app uses the clips in `audio/`. If a clip is missing it falls back to your
+device's built-in Vietnamese voice, which is unreliable on single syllables — that's
+the whole reason the clips exist.
 
 ## Step 3 — Make a GitHub token
 
@@ -83,7 +88,7 @@ tokens → Fine-grained tokens → Generate new token**.
 ## Step 4 — Open the notebook in Colab
 
 Go to [colab.research.google.com](https://colab.research.google.com), choose
-**GitHub**, paste your repo URL, and open `notebooks/build_audio.ipynb`.
+**GitHub**, paste your repo URL, and open `build_audio.ipynb`.
 
 Click the **key icon** in the left sidebar. Add a secret:
 
@@ -106,10 +111,12 @@ re-run the cell — it skips everything already done. Everything is saved in you
 Google Drive, so nothing is lost.
 
 **Step 7 catches bad clips.** It plays every clip back into a Vietnamese speech
-recogniser and flags any that don't come back as the right syllable. This is
+recogniser and flags any that don't come back as the right syllable, writing the
+result to `qc_report.csv` (not committed — it's regenerated each run). This is
 what stops a mispronounced clip from teaching you the wrong tone.
 
-The last cell pushes to GitHub. A minute later your site has real audio.
+The last cell rebuilds `data.json` and pushes to GitHub. A minute later your site
+has the new audio.
 
 ## Step 6 — Put it on your phone
 
@@ -138,13 +145,16 @@ The settings panel (gear icon) controls:
 
 ## Changing what gets drilled
 
-Edit `data/vietnamese_drill_items.csv` however you like, then re-run the last
-notebook cell to rebuild `docs/data.json`.
+Edit `vietnamese_drill_items.csv` however you like, then rebuild `data.json`:
+
+```
+python build_data.py
+```
 
 To widen the vocabulary range past 3,000, run:
 
 ```
-python scripts/build_data.py --max-rank 5000
+python build_data.py --max-rank 5000
 ```
 
 then regenerate the extra clips — step 6 in the notebook only makes what's missing.
