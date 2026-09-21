@@ -76,7 +76,7 @@ def encode(wav_path, out_path):
             'areverse,'
             'silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.02,'
             'areverse,'
-            'loudnorm=I=-18:TP=-2:LRA=7')
+            'loudnorm=I=-16:TP=-1.5:LRA=7')
     if args.speed != 1.0:
         filt += f',atempo={args.speed}'
     codec = {'mp3': ['-c:a', 'libmp3lame', '-b:a', '64k'],
