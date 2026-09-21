@@ -16,9 +16,10 @@ ships preset voices in both Northern and Southern accents — the Southern voice
 are the reason it's used here rather than a generic multilingual engine.
 Installed in the notebook with `pip install vieneu`.
 
-**[PhoWhisper](https://huggingface.co/vinai/PhoWhisper-small)** (VinAI) checks
-the results. It transcribes every generated clip back to text so anything that
-came out wrong gets flagged before it reaches the app.
+**[PhoWhisper](https://huggingface.co/vinai/PhoWhisper-small)** (VinAI) is an
+optional check. It can transcribe generated clips back to text to flag ones that
+came out wrong, though on isolated syllables it raises enough false alarms that a
+native speaker's ear is the more reliable test.
 
 **The syllable list** is Luong Hieu Thi's
 [corpus study](https://www.hieuthi.com/blog/2017/04/03/vietnamese-syllables-usage.html)
@@ -118,15 +119,13 @@ until you're happy; nothing is committed yet.
 **The full run in step 6 takes a while and is resumable.** It makes each accent
 in turn — about 6,000 clips each — and pushes each one to GitHub as it finishes.
 If the session drops, re-run the cell; it skips every accent already pushed to
-GitHub, and picks up the current one from scratch.
+GitHub, and picks up the current one from scratch. A minute after any push, your
+site has the new audio.
 
-**Step 7 catches bad clips.** It plays every clip back into a Vietnamese speech
-recogniser and flags any that don't come back as the right syllable, writing one
-`qc_report_<accent>.csv` per accent. This is what stops a mispronounced clip from
-teaching you the wrong tone.
-
-**Step 8 removes the clips you've confirmed are wrong** and pushes the reports.
-A minute after any push, your site has the new audio.
+**Checking the clips is done by ear.** The best test is a native Vietnamese
+speaker on the finished site. `qc_clips.py` can do a rough automated pass with
+PhoWhisper (`python qc_clips.py --region south`), but it flags a lot of false
+positives on isolated syllables, so it's optional and off the main path.
 
 ## Step 6 — Put it on your phone
 
