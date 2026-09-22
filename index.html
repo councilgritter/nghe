@@ -96,6 +96,19 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chip{padding:9px 15px;border-radius:999px;border:1px solid var(--edge);font-size:14px;color:var(--muted)}
 .chip.on{background:#e6ecf5;color:var(--ink);border-color:#e6ecf5;font-weight:600}
+
+/* --- first-run accent picker --- */
+.picker{position:fixed;inset:0;z-index:30;background:var(--ink);display:none;
+  align-items:center;justify-content:center;padding:calc(env(safe-area-inset-top,0px) + 20px) var(--pad)}
+.picker.open{display:flex}
+.picker .pwrap{max-width:420px;width:100%}
+.picker h2{font-size:24px;font-weight:800;margin:0 0 8px;text-align:center}
+.picker p{color:var(--muted);font-size:14px;margin:0 0 26px;text-align:center}
+.picker .accent{display:block;width:100%;margin:10px 0;padding:18px 20px;border-radius:14px;
+  border:1px solid var(--edge);background:var(--slate);text-align:left}
+.picker .accent:hover,.picker .accent:focus-visible{border-color:var(--amber)}
+.picker .accent b{display:block;font-size:18px;font-weight:600;color:#e6ecf5}
+.picker .accent span{display:block;font-size:13px;color:var(--muted);margin-top:3px}
 .row{display:flex;align-items:center;gap:12px;font-size:14px;color:var(--muted);margin-top:12px}
 input[type=range]{flex:1;accent-color:var(--amber)}
 .stats{margin-top:10px;font-size:14px}
@@ -144,20 +157,29 @@ input[type=range]{flex:1;accent-color:var(--amber)}
   </div>
 </div>
 
+<div class="picker" id="picker">
+  <div class="pwrap">
+    <h2>Which accent?</h2>
+    <p>Pick the Vietnamese you want to train your ear on. You can switch any time in settings.</p>
+    <button class="accent" id="pickSouth"><b>Southern</b><span>Miền Nam</span></button>
+    <button class="accent" id="pickNorth"><b>Northern</b><span>Miền Bắc</span></button>
+  </div>
+</div>
+
 <div class="sheet" id="sheet">
  <div class="wrap">
   <h2>Settings</h2>
   <p class="note" id="audioNote"></p>
+
+  <h3>Accent</h3>
+  <div class="chips" id="regionChips"></div>
+  <p class="note" id="regionNote"></p>
 
   <h3>What to drill</h3>
   <div class="chips" id="axisChips"></div>
 
   <h3>Difficulty</h3>
   <div class="chips" id="diffChips"></div>
-
-  <h3>Accent</h3>
-  <div class="chips" id="regionChips"></div>
-  <p class="note" id="regionNote"></p>
 
   <h3>Vocabulary range</h3>
   <div class="row">
@@ -438,10 +460,27 @@ addEventListener('keydown', e => {
 if('speechSynthesis' in window){ pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
 if('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
 
+function chooseAccent(region){
+  S.cfg.region = region; saveCfg();
+  try{ localStorage.setItem('vn.accentSet', '1'); }catch(e){}
+  cache.clear();
+  $('picker').classList.remove('open');
+  paintStrip(); newQuestion();
+}
+$('pickSouth').onclick = () => chooseAccent('south');
+$('pickNorth').onclick = () => chooseAccent('north');
+
 fetch('data.json').then(r => r.json()).then(d => {
   S.data = d;
-  paintStrip();
-  newQuestion();
+  let set, hadCfg;
+  try{ set = localStorage.getItem('vn.accentSet'); hadCfg = localStorage.getItem('vn.cfg'); }catch(e){}
+  // returning users keep their accent; only a brand-new visitor is asked
+  if(!set && hadCfg){ try{ localStorage.setItem('vn.accentSet','1'); }catch(e){} set = '1'; }
+  if(!set){
+    $('picker').classList.add('open');   // wait for a choice, then start
+  } else {
+    paintStrip(); newQuestion();
+  }
 }).catch(() => {
   $('prompt').textContent = 'Could not load data.json. Check it sits next to index.html.';
 });
