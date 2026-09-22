@@ -288,6 +288,13 @@ function noteAudio(){
 }
 
 /* ---------- question selection ---------- */
+const TONE_BALANCE = 0.6;   // 0 = corpus frequency, 1 = every tone equally often
+function toneOf(s){
+  const d = s.normalize('NFD');
+  return d.includes('̀') ? 'huyen' : d.includes('́') ? 'sac'
+       : d.includes('̉') ? 'hoi'   : d.includes('̃') ? 'nga'
+       : d.includes('̣') ? 'nang'  : 'ngang';
+}
 function key(it){ return it[6]; }
 function weight(it){
   const st = S.stats[key(it)];
@@ -303,11 +310,27 @@ function pool(){
 function pick(){
   const p = pool();
   if(!p.length) return null;
-  const sample = [];
-  for(let i=0;i<24;i++) sample.push(p[(Math.random()*p.length)|0]);
-  let best = sample[0], bw = -1;
-  for(const it of sample){
-    const w = weight(it) * (0.65 + Math.random()*0.7);
+  // group the pool by the played syllable's tone, then flatten how often each
+  // tone is sampled — ngang and sắc dominate the corpus, so without this you
+  // rarely hear hỏi or ngã. The weakness weighting below still chooses within.
+  const by = new Map();
+  for(const it of p){ const t = S.tone[it[0]]; (by.get(t) || by.set(t, []).get(t)).push(it); }
+  const tones = [...by.keys()], u = 1 / tones.length, cum = [];
+  let acc = 0;
+  for(const t of tones){
+    acc += (1 - TONE_BALANCE) * (by.get(t).length / p.length) + TONE_BALANCE * u;
+    cum.push(acc);
+  }
+  function sample(){
+    const r = Math.random() * acc;
+    let k = 0; while(k < cum.length - 1 && r > cum[k]) k++;
+    const arr = by.get(tones[k]);
+    return arr[(Math.random() * arr.length) | 0];
+  }
+  let best = null, bw = -1;
+  for(let i = 0; i < 24; i++){
+    const it = sample();
+    const w = weight(it) * (0.65 + Math.random() * 0.7);
     if(w > bw){ bw = w; best = it; }
   }
   return best;
@@ -472,6 +495,7 @@ $('pickNorth').onclick = () => chooseAccent('north');
 
 fetch('data.json').then(r => r.json()).then(d => {
   S.data = d;
+  S.tone = d.syllables.map(toneOf);   // precompute each syllable's tone once
   let set, hadCfg;
   try{ set = localStorage.getItem('vn.accentSet'); hadCfg = localStorage.getItem('vn.cfg'); }catch(e){}
   // returning users keep their accent; only a brand-new visitor is asked
