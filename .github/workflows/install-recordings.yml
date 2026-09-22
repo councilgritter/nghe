@@ -1,0 +1,54 @@
+name: Install approved recordings
+
+# Run it by hand from the Actions tab (Run workflow), or on a schedule.
+on:
+  workflow_dispatch:
+  # schedule:                     # uncomment to run automatically, e.g. daily 03:00 UTC
+  #   - cron: '0 3 * * *'
+
+permissions:
+  contents: write                 # lets the built-in token push audio back
+
+concurrency: install-recordings   # never two installs at once
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Fetch and install approved recordings
+        env:
+          COLLECTOR_URL: ${{ secrets.COLLECTOR_URL }}
+          COLLECTOR_KEY: ${{ secrets.COLLECTOR_KEY }}
+        run: python scripts/install_recordings.py
+
+      - name: Commit and push
+        id: push
+        run: |
+          git config user.name  "nghe-recordings-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add audio
+          if git diff --cached --quiet; then
+            echo "installed=false" >> "$GITHUB_OUTPUT"
+            echo "nothing new to install"
+          else
+            git commit -m "Install approved human recordings"
+            git push
+            echo "installed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Mark installed in the sheet
+        if: steps.push.outputs.installed == 'true'
+        env:
+          COLLECTOR_URL: ${{ secrets.COLLECTOR_URL }}
+          COLLECTOR_KEY: ${{ secrets.COLLECTOR_KEY }}
+        run: python scripts/install_recordings.py --mark

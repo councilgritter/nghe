@@ -4,16 +4,25 @@ A way for users to record the **correct** pronunciation of a syllable, have it
 reviewed, and install the approved ones over the AI clips. Additive: it layers on
 top of the generated audio and doesn't touch the generation pipeline.
 
-## Status
+## Status — built
 
-- **Not in the app.** The current `index.html` has no flag or record UI. An older
-  version did — see git history (the 32 KB `Index.html`, e.g. commit `2f4a906`),
-  which had a flag button, a recorder, and a "reasons" panel.
-- **Installer exists but is orphaned:** `install_approved.py` (a Colab cell). It
-  pulls approved recordings, trims/normalises them with ffmpeg, and writes them
-  over the AI clip. It already handles per-accent folders via a `region` field.
-- **Collector never built.** The middle piece — an endpoint the app posts to, and
-  the sheet a reviewer approves in — was never in the repo.
+- **App UI (done):** `index.html` has a Flag button + reasons panel + optional
+  recorder, tagging each flag/recording with `clip_id` + `region`. Flags stay local
+  (CSV export in Settings) until `FLAG_ENDPOINT` is set; recording is offered once it is.
+- **Collector + review (done):** `apps_script/collector.gs` + `apps_script/review.html`
+  — one bound Google Apps Script that logs flags/recordings to a Sheet (audio to Drive),
+  serves a review page (AI original vs. suggestion, Approve/Reject), and exposes the
+  approved queue. Deploy per `apps_script/README.md`, then put its `/exec` URL in
+  `FLAG_ENDPOINT`.
+- **Install Action (done):** `.github/workflows/install-recordings.yml` +
+  `scripts/install_recordings.py` — fetches approved recordings from the collector,
+  ffmpeg-processes them to match the AI clips, installs over `audio/<region>/<clip>.mp3`,
+  pushes with the built-in token, and marks rows installed. Run it from the Actions tab.
+- **Legacy:** `install_approved.py` (the old Colab installer) is superseded by the Action.
+
+**To switch it all on:** deploy the Apps Script, paste its `/exec` URL into
+`FLAG_ENDPOINT` in `index.html` (and `TESTER_KEY` if you set `KEY`), and add
+`COLLECTOR_URL` (+ optional `COLLECTOR_KEY`) as repo Action secrets.
 
 ## The chain (decided: batched GitHub Action)
 
