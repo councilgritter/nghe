@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<style>
+  :root{ --ink:#101726; --slate:#1a2434; --edge:#2b3a50; --muted:#8496ae;
+         --amber:#f0b429; --ok:#43a67c; --no:#d9534a; }
+  body{ margin:0; background:var(--ink); color:#e6ecf5; font-family:system-ui,-apple-system,'Segoe UI',sans-serif; }
+  .wrap{ max-width:620px; margin:0 auto; padding:20px 16px 60px; }
+  h1{ font-size:20px; font-weight:800; margin:0 0 4px; }
+  .sub{ color:var(--muted); font-size:13px; margin:0 0 20px; }
+  .card{ background:var(--slate); border:1px solid var(--edge); border-radius:14px; padding:16px; margin-bottom:14px; }
+  .syl{ font-size:30px; font-weight:600; color:var(--ok); }
+  .meta{ color:var(--muted); font-size:12px; margin:2px 0 12px; }
+  .pair{ display:flex; gap:16px; flex-wrap:wrap; margin-bottom:12px; }
+  .pair > div{ flex:1; min-width:220px; }
+  .lbl{ font-size:12px; color:var(--muted); margin-bottom:4px; }
+  audio{ width:100%; }
+  .row{ display:flex; gap:10px; }
+  button{ flex:1; padding:12px; border-radius:10px; border:1px solid var(--edge); font:inherit;
+          color:inherit; background:none; cursor:pointer; font-size:15px; }
+  .ok{ background:var(--ok); border-color:var(--ok); color:#04241a; font-weight:600; }
+  .no{ border-color:var(--no); color:var(--no); }
+  .empty,.msg{ color:var(--muted); font-size:14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Review recordings</h1>
+  <p class="sub">Play the AI original next to the tester's recording. Approve if the recording
+     is a correct, clear pronunciation in the right accent; reject if not. Approved ones get
+     installed on the next batch run.</p>
+  <div id="list"><p class="msg">Loading…</p></div>
+</div>
+<script>
+function esc(s){ return String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+function render(items){
+  const list = document.getElementById('list');
+  if(!items.length){ list.innerHTML = '<p class="empty">Nothing pending. All caught up.</p>'; return; }
+  list.innerHTML = '';
+  items.forEach(it => {
+    const c = document.createElement('div');
+    c.className = 'card';
+    c.innerHTML =
+      '<div class="syl">' + esc(it.syllable) + '</div>' +
+      '<div class="meta">' + esc(it.region) + ' · ' + esc(it.clip) +
+        (it.by ? ' · by ' + esc(it.by) : '') + '</div>' +
+      '<div class="pair">' +
+        '<div><div class="lbl">AI original</div><audio controls src="' + it.aiUrl + '"></audio></div>' +
+        '<div><div class="lbl">Tester recording</div>' +
+          (it.src ? '<audio controls src="' + it.src + '"></audio>' : '<span class="msg">audio missing</span>') +
+        '</div>' +
+      '</div>' +
+      '<div class="row">' +
+        '<button class="ok">Approve</button>' +
+        '<button class="no">Reject</button>' +
+      '</div>';
+    const [approve, reject] = c.querySelectorAll('button');
+    approve.onclick = () => decide(c, it.row, true);
+    reject.onclick  = () => decide(c, it.row, false);
+    list.appendChild(c);
+  });
+}
+
+function decide(card, row, approve){
+  card.querySelectorAll('button').forEach(b => b.disabled = true);
+  card.style.opacity = .5;
+  google.script.run
+    .withSuccessHandler(() => { card.remove(); if(!document.querySelector('.card')) render([]); })
+    .withFailureHandler(() => { card.style.opacity = 1; card.querySelectorAll('button').forEach(b => b.disabled = false); })
+    .decide(row, approve);
+}
+
+google.script.run
+  .withSuccessHandler(render)
+  .withFailureHandler(() => { document.getElementById('list').innerHTML = '<p class="msg">Could not load. Reload the page.</p>'; })
+  .getPending();
+</script>
+</body>
+</html>
