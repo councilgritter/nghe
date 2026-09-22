@@ -109,6 +109,35 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
 .picker .accent:hover,.picker .accent:focus-visible{border-color:var(--amber)}
 .picker .accent b{display:block;font-size:18px;font-weight:600;color:#e6ecf5}
 .picker .accent span{display:block;font-size:13px;color:var(--muted);margin-top:3px}
+
+/* --- flag a bad clip / record a replacement --- */
+.flag{border:1px solid var(--edge);color:var(--muted);padding:9px 13px;border-radius:10px;font-size:13px}
+.flag:hover{border-color:var(--no);color:var(--no)}
+.flag.on{background:var(--no);border-color:var(--no);color:#2d0704}
+.reasons,.panel{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--slate);
+  border-top:1px solid var(--edge);padding:18px var(--pad) calc(env(safe-area-inset-bottom,0px) + 18px);display:none}
+.reasons.open,.panel.open{display:block}
+.reasons .wrap,.panel .wrap{max-width:560px;margin:0 auto}
+.reasons h4,.panel h4{margin:0 0 4px;font-size:15px;font-weight:600}
+.reasons p,.panel p{margin:0 0 14px;font-size:13px;color:var(--muted)}
+.reasons button{display:block;width:100%;text-align:left;padding:13px 15px;margin-bottom:8px;
+  border:1px solid var(--edge);border-radius:10px;font-size:15px}
+.reasons button:hover{border-color:var(--muted)}
+.reasons .cancel{text-align:center;color:var(--muted);border:0;font-size:14px;margin-top:4px}
+.reasons .rec-cta{border-color:var(--amber);color:var(--amber)}
+.bigsyl{font-size:40px;font-weight:600;margin:2px 0 6px}
+.bigsyl.ok{color:var(--ok)}
+.en{display:block;font-size:12px;color:var(--muted);font-weight:400;margin-top:3px;line-height:1.35}
+.thanks{display:block;font-size:24px;font-weight:800;color:var(--ok);margin:4px 0 8px}
+.panel .accent{background:var(--ink);border:1px solid var(--edge);border-radius:10px;
+  padding:10px 12px;color:#e6ecf5;font-size:14px}
+.recbtn{width:100%;padding:16px;border-radius:12px;background:var(--amber);color:#241a00;font-weight:600;font-size:16px}
+.recbtn.live{background:var(--no);color:#2d0704;animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.7}}
+#recPreview{width:100%;margin-top:12px}
+.recrow{display:flex;gap:8px;margin-top:12px}
+.recrow button{flex:1;padding:12px;border-radius:10px;border:1px solid var(--edge);font-size:15px}
+#recSend{background:#e6ecf5;color:var(--ink);border-color:#e6ecf5;font-weight:600}
 .row{display:flex;align-items:center;gap:12px;font-size:14px;color:var(--muted);margin-top:12px}
 input[type=range]{flex:1;accent-color:var(--amber)}
 .stats{margin-top:10px;font-size:14px}
@@ -153,8 +182,45 @@ input[type=range]{flex:1;accent-color:var(--amber)}
 
   <div class="verdict">
     <span class="lab" id="lab"></span>
+    <button class="flag" id="flagBtn" hidden>Sai? Báo lỗi</button>
     <button class="next" id="next" hidden>Next</button>
   </div>
+</div>
+
+<div class="reasons" id="reasons">
+ <div class="wrap">
+  <div id="stepReason">
+   <div class="bigsyl ok" id="flagWhat"></div>
+   <p>Bản ghi âm của từ màu xanh này sai chỗ nào?<span class="en">What's wrong with the recording of this green word?</span></p>
+   <button data-r="tone">Sai dấu (thanh điệu)<span class="en">Wrong tone</span></button>
+   <button data-r="sound">Sai âm, không giống chữ viết<span class="en">Wrong sound, not the written word</span></button>
+   <button data-r="carrier">Có thêm tiếng ở đầu<span class="en">Extra word at the start</span></button>
+   <button data-r="unclear">Không rõ hoặc bị cắt mất<span class="en">Unclear or cut off</span></button>
+   <button data-r="other">Lý do khác<span class="en">Something else</span></button>
+   <button class="cancel" id="flagCancel">Hủy<span class="en">Cancel</span></button>
+  </div>
+  <div id="stepThanks" hidden>
+   <span class="thanks">Cảm ơn rất nhiều!</span>
+   <p id="thanksMore">Nếu tiện, bạn có thể ghi âm cách đọc đúng. Không bắt buộc — nếu chỗ bạn đang ồn hoặc micro điện thoại không tốt thì cứ bỏ qua nhé.<span class="en">If it's convenient, you can record the correct pronunciation. It's optional: skip it if it's noisy or your phone's mic isn't great.</span></p>
+   <button class="rec-cta" id="recOpen">Ghi âm cách đọc đúng<span class="en">Record the correct version</span></button>
+   <button class="cancel" id="thanksDone">Để sau<span class="en">Not now</span></button>
+  </div>
+ </div>
+</div>
+
+<div class="panel" id="recorder">
+ <div class="wrap">
+  <h4>Ghi âm cách đọc đúng<span class="en">Record the correct version</span></h4>
+  <div class="bigsyl ok" id="recWhat"></div>
+  <p class="accent" id="recAccent"></p>
+  <p id="recStatus"></p>
+  <button class="recbtn" id="recBtn">Ghi âm</button>
+  <audio id="recPreview" controls hidden></audio>
+  <div class="recrow">
+    <button id="recCancel">Hủy</button>
+    <button id="recSend" hidden>Gửi</button>
+  </div>
+ </div>
 </div>
 
 <div class="picker" id="picker">
@@ -191,6 +257,10 @@ input[type=range]{flex:1;accent-color:var(--amber)}
   <h3>Your weakest contrasts</h3>
   <div class="stats" id="stats"></div>
 
+  <h3>Flagged recordings</h3>
+  <div class="stats" id="flagList"></div>
+  <div class="row" id="flagActions" style="gap:8px;flex-wrap:wrap"></div>
+
   <h3>About the audio</h3>
   <p class="note">The voices in this app are generated by AI, not recorded by a
   person. They are made with <a href="https://github.com/pnnbao97/VieNeu-TTS"
@@ -224,6 +294,16 @@ if(S.cfg.region !== 'south' && S.cfg.region !== 'north') S.cfg.region = 'south';
 const $ = id => document.getElementById(id);
 const saveCfg = () => localStorage.setItem('vn.cfg', JSON.stringify(S.cfg));
 const saveStats = () => localStorage.setItem('vn.stats', JSON.stringify(S.stats));
+
+/* ---------- flagging config ----------
+   Flags stay on the tester's device (export as CSV in Settings) until you point
+   FLAG_ENDPOINT at a Google Apps Script web app that collects them centrally.
+   Recording a replacement is only offered once an endpoint is set. See
+   human-recordings.md for the collector + review-app + install pipeline. */
+const FLAG_ENDPOINT = '';
+const TESTER_KEY = '';
+S.flags = JSON.parse(localStorage.getItem('vn.flags') || '[]');
+const saveFlags = () => localStorage.setItem('vn.flags', JSON.stringify(S.flags));
 
 /* ---------- audio ---------- */
 const cache = new Map();
@@ -349,6 +429,9 @@ function newQuestion(){
   S.item = it; S.answered = false; S.rate = 1;
   S.opts = shuffle([it[0], it[1], it[2], it[3]]);
   $('next').hidden = true;
+  $('flagBtn').hidden = true;
+  $('flagBtn').classList.remove('on');
+  $('flagBtn').textContent = 'Sai? Báo lỗi';
   $('lab').textContent = '';
   $('prompt').textContent = 'Listen, then pick what you heard.';
 
@@ -396,7 +479,8 @@ function answer(i, btn){
     + c.label.replace(' / ', ' vs ');
   $('prompt').textContent = 'Tap any tile to hear it.';
   $('next').hidden = false;
-  if(ok) setTimeout(() => { if(S.answered) newQuestion(); }, 900);
+  $('flagBtn').hidden = false;
+  if(ok) setTimeout(() => { if(S.answered && !panelsOpen()) newQuestion(); }, 1600);
   paintStrip();
 }
 
@@ -459,12 +543,212 @@ function buildSheet(){
   noteAudio();
 }
 
+/* ---------- flagging ---------- */
+const say = (vi, en) => vi + '<span class="en">' + en + '</span>';
+function panelsOpen(){ return $('reasons').classList.contains('open') || $('recorder').classList.contains('open'); }
+
+function openReasons(){
+  if(!S.item) return;
+  $('flagWhat').textContent = S.data.syllables[S.item[0]];
+  $('stepReason').hidden = false;
+  $('stepThanks').hidden = true;
+  $('reasons').classList.add('open');
+}
+function addFlag(reason){
+  const sylIdx = S.item[0];
+  const f = {
+    clip: S.data.clips[sylIdx],
+    syllable: S.data.syllables[sylIdx],
+    region: S.cfg.region,
+    reason: reason,
+    when: new Date().toISOString(),
+  };
+  S.flags = S.flags.filter(x => !(x.clip === f.clip && x.region === f.region));
+  S.flags.push(f);
+  saveFlags();
+  send(f);
+  $('flagBtn').classList.add('on');
+  $('flagBtn').textContent = 'Đã báo';
+  const can = canRecord();
+  $('stepReason').hidden = true;
+  $('stepThanks').hidden = false;
+  $('recOpen').hidden = !can;
+  $('thanksMore').hidden = !can;
+  $('thanksDone').innerHTML = can ? say('Để sau', 'Not now') : say('Đóng', 'Close');
+  if(!can) setTimeout(() => $('reasons').classList.remove('open'), 1600);
+}
+function send(f){
+  if(!FLAG_ENDPOINT) return;   // no collector set: flag stays local
+  fetch(FLAG_ENDPOINT, {method:'POST', mode:'no-cors',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify(Object.assign({key: TESTER_KEY}, f))})
+    .catch(() => {});
+}
+function flagCsv(){
+  const head = 'clip_id,syllable,region,reason,when\n';
+  return head + S.flags.map(f =>
+    [f.clip, f.syllable, f.region, f.reason, f.when].join(',')).join('\n');
+}
+function paintFlags(){
+  const host = $('flagList'), acts = $('flagActions');
+  host.innerHTML = ''; acts.innerHTML = '';
+  if(!S.flags.length){
+    host.innerHTML = '<p class="note">Nothing flagged yet. When a recording sounds '
+      + 'wrong, answer the question then tap <b>Flag</b>.</p>';
+    return;
+  }
+  S.flags.slice().reverse().slice(0, 40).forEach(f => {
+    const d = document.createElement('div');
+    d.innerHTML = '<span style="flex:0 0 32%">' + f.syllable + '</span>'
+      + '<span style="flex:1;color:var(--muted)">' + f.reason + ' · ' + f.region + '</span>'
+      + '<span class="n">' + f.clip + '</span>';
+    host.appendChild(d);
+  });
+  const mk = (label, fn) => {
+    const b = document.createElement('button');
+    b.className = 'chip'; b.textContent = label; b.onclick = fn; acts.appendChild(b);
+  };
+  mk('Copy ' + S.flags.length + ' flags', async () => {
+    try { await navigator.clipboard.writeText(flagCsv()); alert('Copied. Paste it to whoever is fixing the recordings.'); }
+    catch { alert(flagCsv()); }
+  });
+  mk('Download CSV', () => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([flagCsv()], {type:'text/csv'}));
+    a.download = 'nghe-flags.csv'; a.click();
+  });
+  mk('Clear', () => {
+    if(confirm('Clear all flags? Export them first if you have not sent them.')) {
+      S.flags = []; saveFlags(); paintFlags();
+    }
+  });
+}
+
+/* ---------- recording a replacement ---------- */
+const rec = {mr:null, chunks:[], blob:null, mime:'', timer:null};
+function canRecord(){
+  return !!FLAG_ENDPOINT && !!(navigator.mediaDevices && window.MediaRecorder);
+}
+function pickMime(){
+  for(const m of ['audio/webm;codecs=opus','audio/webm','audio/mp4','audio/aac'])
+    if(MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)) return m;
+  return '';
+}
+function accentNote(){
+  return S.cfg.region === 'north'
+    ? say('Vui lòng đọc bằng giọng miền Bắc.', 'Please use a Northern accent.')
+    : say('Vui lòng đọc bằng giọng miền Nam.', 'Please use a Southern accent.');
+}
+function resetRec(){
+  rec.blob = null;
+  $('recPreview').hidden = true; $('recPreview').removeAttribute('src');
+  $('recSend').hidden = true; $('recSend').disabled = false;
+  $('recBtn').textContent = 'Ghi âm'; $('recBtn').classList.remove('live');
+  $('recStatus').innerHTML = say(
+    'Nhấn Ghi âm, đọc từ màu xanh một lần, rồi nhấn Dừng. Sau 3 giây sẽ tự dừng.',
+    'Tap Record, say the green word once, then tap Stop. It stops by itself after 3 seconds.');
+}
+function openRecorder(){
+  if(!localStorage.getItem('vn.consent')){
+    if(!confirm('Bản ghi âm của bạn sẽ được lưu lại. Sau khi được duyệt, mọi người dùng '
+      + 'ứng dụng này sẽ nghe được. Bạn đồng ý chứ?\n\n'
+      + 'Your recording will be saved and, once approved, played to everyone who uses this app.')) return;
+    const who = prompt('Tên để ghi công bạn (không bắt buộc, để trống nếu muốn ẩn danh):\n'
+      + 'Name to credit you with (optional, leave blank to stay anonymous):', '') || '';
+    localStorage.setItem('vn.consent', '1');
+    localStorage.setItem('vn.recname', who.trim());
+  }
+  $('reasons').classList.remove('open');
+  $('recWhat').textContent = S.data.syllables[S.item[0]];
+  $('recAccent').innerHTML = accentNote();
+  resetRec();
+  $('recorder').classList.add('open');
+}
+function closeRecorder(){
+  if(rec.mr && rec.mr.state === 'recording') rec.mr.stop();
+  $('recorder').classList.remove('open');
+}
+async function toggleRec(){
+  if(rec.mr && rec.mr.state === 'recording'){ rec.mr.stop(); return; }
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia(
+      {audio:{echoCancellation:true, noiseSuppression:true}});
+    rec.mime = pickMime(); rec.chunks = [];
+    rec.mr = new MediaRecorder(stream, rec.mime ? {mimeType: rec.mime} : undefined);
+    rec.mr.ondataavailable = e => { if(e.data.size) rec.chunks.push(e.data); };
+    rec.mr.onstop = () => {
+      stream.getTracks().forEach(t => t.stop());
+      clearTimeout(rec.timer);
+      rec.blob = new Blob(rec.chunks, {type: rec.mr.mimeType || rec.mime || 'audio/webm'});
+      $('recPreview').src = URL.createObjectURL(rec.blob);
+      $('recPreview').hidden = false;
+      $('recBtn').textContent = 'Ghi lại'; $('recBtn').classList.remove('live');
+      $('recSend').hidden = false;
+      $('recStatus').innerHTML = say('Nghe lại nhé. Nếu đúng thì nhấn Gửi.',
+                                     'Listen back. Tap Send if it sounds right.');
+    };
+    rec.mr.start();
+    $('recBtn').textContent = 'Dừng'; $('recBtn').classList.add('live');
+    $('recStatus').innerHTML = say('Đang ghi âm... Hãy đọc từ này một lần thật rõ.',
+                                   'Recording. Say the word once, clearly.');
+    rec.timer = setTimeout(() => { if(rec.mr && rec.mr.state === 'recording') rec.mr.stop(); }, 3000);
+  }catch(e){
+    $('recStatus').innerHTML = say('Micro đang bị chặn. Hãy cho phép trang này dùng micro rồi thử lại.',
+      'The microphone is blocked. Allow microphone access for this site, then try again.');
+  }
+}
+async function sendRec(){
+  if(!rec.blob) return;
+  $('recSend').disabled = true;
+  $('recStatus').innerHTML = say('Đang gửi...', 'Sending...');
+  const b64 = await new Promise(res => {
+    const r = new FileReader();
+    r.onload = () => res(String(r.result).split(',')[1]);
+    r.readAsDataURL(rec.blob);
+  });
+  const sylIdx = S.item[0];
+  const payload = {
+    type:'recording', key: TESTER_KEY,
+    clip: S.data.clips[sylIdx], syllable: S.data.syllables[sylIdx],
+    region: S.cfg.region, mime: rec.blob.type,
+    by: localStorage.getItem('vn.recname') || '',
+    when: new Date().toISOString(), audio: b64,
+  };
+  try{
+    await fetch(FLAG_ENDPOINT, {method:'POST', mode:'no-cors',
+      headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(payload)});
+    const f = {clip: payload.clip, syllable: payload.syllable, region: payload.region,
+               reason: 'recorded', when: payload.when};
+    S.flags = S.flags.filter(x => !(x.clip === f.clip && x.region === f.region));
+    S.flags.push(f); saveFlags();
+    $('flagBtn').classList.add('on'); $('flagBtn').textContent = 'Đã ghi âm';
+    $('recSend').hidden = true;
+    $('recStatus').innerHTML = '<span class="thanks">Cảm ơn rất nhiều!</span>'
+      + say('Người duyệt sẽ kiểm tra bản ghi của bạn.', 'A reviewer will check your recording.');
+    setTimeout(closeRecorder, 2200);
+  }catch(e){
+    $('recStatus').innerHTML = say('Không gửi được. Kiểm tra kết nối mạng rồi thử lại.',
+      'Could not send. Check your connection and try again.');
+    $('recSend').disabled = false;
+  }
+}
+
 /* ---------- wiring ---------- */
 $('play').onclick = replay;
 $('again').onclick = replay;
 $('slow').onclick = () => { S.rate = S.rate === 1 ? 0.65 : 1; $('slow').textContent = S.rate === 1 ? 'Slower' : 'Normal'; replay(); };
 $('next').onclick = newQuestion;
-$('gear').onclick = () => { buildSheet(); $('sheet').classList.add('open'); };
+$('gear').onclick = () => { buildSheet(); paintFlags(); $('sheet').classList.add('open'); };
+$('flagBtn').onclick = openReasons;
+$('flagCancel').onclick = () => $('reasons').classList.remove('open');
+$('recOpen').onclick = openRecorder;
+$('thanksDone').onclick = () => $('reasons').classList.remove('open');
+$('recBtn').onclick = toggleRec;
+$('recSend').onclick = sendRec;
+$('recCancel').onclick = closeRecorder;
+document.querySelectorAll('.reasons button[data-r]').forEach(b => {
+  b.onclick = () => addFlag(b.getAttribute('data-r'));
+});
 $('close').onclick = () => { $('sheet').classList.remove('open'); };
 $('rank').oninput = e => { S.cfg.rank = +e.target.value; $('rankVal').textContent = 'top ' + S.cfg.rank.toLocaleString(); saveCfg(); };
 $('reset').onclick = () => {
@@ -472,7 +756,7 @@ $('reset').onclick = () => {
   S.stats = {}; saveStats(); S.seen = S.right = S.today = S.streak = 0; paintStrip(); buildSheet();
 };
 addEventListener('keydown', e => {
-  if($('sheet').classList.contains('open')) return;
+  if($('sheet').classList.contains('open') || panelsOpen()) return;
   if(e.key === ' '){ e.preventDefault(); replay(); }
   else if(e.key === 'Enter' && S.answered) newQuestion();
   else if('1234'.includes(e.key)){
