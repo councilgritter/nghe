@@ -214,7 +214,7 @@ input[type=range]{flex:1;accent-color:var(--amber)}
   <div class="bigsyl ok" id="recWhat"></div>
   <p class="accent" id="recAccent"></p>
   <p id="recStatus"></p>
-  <button class="recbtn" id="recBtn">Ghi âm</button>
+  <button class="recbtn" id="recBtn">🎙️ Ghi âm</button>
   <audio id="recPreview" controls hidden></audio>
   <div class="recrow">
     <button id="recCancel">Hủy</button>
@@ -649,7 +649,7 @@ function resetRec(){
   rec.blob = null;
   $('recPreview').hidden = true; $('recPreview').removeAttribute('src');
   $('recSend').hidden = true; $('recSend').disabled = false;
-  $('recBtn').textContent = 'Ghi âm'; $('recBtn').classList.remove('live');
+  $('recBtn').textContent = '🎙️ Ghi âm'; $('recBtn').classList.remove('live');
   $('recStatus').innerHTML = say(
     'Nhấn Ghi âm, đọc từ màu xanh một lần, rồi nhấn Dừng. Sau 3 giây sẽ tự dừng.',
     'Tap Record, say the green word once, then tap Stop. It stops by itself after 3 seconds.');
@@ -688,13 +688,13 @@ async function toggleRec(){
       rec.blob = new Blob(rec.chunks, {type: rec.mr.mimeType || rec.mime || 'audio/webm'});
       $('recPreview').src = URL.createObjectURL(rec.blob);
       $('recPreview').hidden = false;
-      $('recBtn').textContent = 'Ghi lại'; $('recBtn').classList.remove('live');
+      $('recBtn').textContent = '🎙️ Ghi lại'; $('recBtn').classList.remove('live');
       $('recSend').hidden = false;
       $('recStatus').innerHTML = say('Nghe lại nhé. Nếu đúng thì nhấn Gửi.',
                                      'Listen back. Tap Send if it sounds right.');
     };
     rec.mr.start();
-    $('recBtn').textContent = 'Dừng'; $('recBtn').classList.add('live');
+    $('recBtn').textContent = '⏹ Dừng'; $('recBtn').classList.add('live');
     $('recStatus').innerHTML = say('Đang ghi âm... Hãy đọc từ này một lần thật rõ.',
                                    'Recording. Say the word once, clearly.');
     rec.timer = setTimeout(() => { if(rec.mr && rec.mr.state === 'recording') rec.mr.stop(); }, 3000);
