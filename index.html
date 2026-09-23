@@ -111,8 +111,8 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
 .picker .accent span{display:block;font-size:13px;color:var(--muted);margin-top:3px}
 
 /* --- flag a bad clip / record a replacement --- */
-.flag{border:1px solid var(--edge);color:var(--muted);padding:9px 13px;border-radius:10px;font-size:13px}
-.flag:hover{border-color:var(--no);color:var(--no)}
+.flag{border:1px solid var(--no);color:var(--no);padding:12px 20px;border-radius:10px;font-size:15px;font-weight:600}
+.flag:hover{background:var(--no);color:#2d0704}
 .flag.on{background:var(--no);border-color:var(--no);color:#2d0704}
 .reasons,.panel{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--slate);
   border-top:1px solid var(--edge);padding:18px var(--pad) calc(env(safe-area-inset-bottom,0px) + 18px);display:none}
@@ -286,7 +286,7 @@ const S = {
   audioOK:null, voice:null, rate:1,
   stats: JSON.parse(localStorage.getItem('vn.stats') || '{}'),
   cfg: Object.assign(
-    {axes:[0,1,2,3], diffs:[1,2], rank:1200, region:'south'},
+    {axes:[0,1,2,3], diffs:[1,2], rank:3000, region:'south'},
     JSON.parse(localStorage.getItem('vn.cfg') || '{}')),
 };
 // accents were reworked to south/north only; retire old saved values
@@ -304,6 +304,10 @@ const FLAG_ENDPOINT = 'https://script.google.com/macros/s/AKfycbzBUbHGWNp8bzlfJ5
 const TESTER_KEY = '';
 S.flags = JSON.parse(localStorage.getItem('vn.flags') || '[]');
 const saveFlags = () => localStorage.setItem('vn.flags', JSON.stringify(S.flags));
+
+// which syllables this tester has already been served, so we spread coverage
+S.heard = new Set(JSON.parse(localStorage.getItem('vn.heard') || '[]'));
+const saveHeard = () => localStorage.setItem('vn.heard', JSON.stringify([...S.heard]));
 
 /* ---------- audio ---------- */
 const cache = new Map();
@@ -410,7 +414,8 @@ function pick(){
   let best = null, bw = -1;
   for(let i = 0; i < 24; i++){
     const it = sample();
-    const w = weight(it) * (0.65 + Math.random() * 0.7);
+    // strongly prefer syllables this tester has not been served yet (coverage)
+    const w = weight(it) * (S.heard.has(it[0]) ? 1 : 5) * (0.65 + Math.random() * 0.7);
     if(w > bw){ bw = w; best = it; }
   }
   return best;
@@ -427,6 +432,7 @@ function newQuestion(){
     S.item = null; return;
   }
   S.item = it; S.answered = false; S.rate = 1;
+  if(!S.heard.has(it[0])){ S.heard.add(it[0]); saveHeard(); }
   S.opts = shuffle([it[0], it[1], it[2], it[3]]);
   $('next').hidden = true;
   $('flagBtn').hidden = true;
@@ -480,7 +486,7 @@ function answer(i, btn){
   $('prompt').textContent = 'Tap any tile to hear it.';
   $('next').hidden = false;
   $('flagBtn').hidden = false;
-  if(ok) setTimeout(() => { if(S.answered && !panelsOpen()) newQuestion(); }, 1600);
+  if(ok) setTimeout(() => { if(S.answered && !panelsOpen()) newQuestion(); }, 2800);
   paintStrip();
 }
 
@@ -697,40 +703,35 @@ async function toggleRec(){
       'The microphone is blocked. Allow microphone access for this site, then try again.');
   }
 }
-async function sendRec(){
+function sendRec(){
   if(!rec.blob) return;
-  $('recSend').disabled = true;
-  $('recStatus').innerHTML = say('Đang gửi...', 'Sending...');
-  const b64 = await new Promise(res => {
-    const r = new FileReader();
-    r.onload = () => res(String(r.result).split(',')[1]);
-    r.readAsDataURL(rec.blob);
-  });
-  const sylIdx = S.item[0];
-  const payload = {
-    type:'recording', key: TESTER_KEY,
-    clip: S.data.clips[sylIdx], syllable: S.data.syllables[sylIdx],
-    region: S.cfg.region, mime: rec.blob.type,
-    by: localStorage.getItem('vn.recname') || '',
-    when: new Date().toISOString(), audio: b64,
+  const blob = rec.blob, sylIdx = S.item[0];
+  const clip = S.data.clips[sylIdx], syllable = S.data.syllables[sylIdx], region = S.cfg.region;
+  // record the flag locally and thank them straight away — the upload runs in
+  // the background, so they can move on to the next question without waiting
+  const f = {clip, syllable, region, reason: 'recorded', when: new Date().toISOString()};
+  S.flags = S.flags.filter(x => !(x.clip === f.clip && x.region === f.region));
+  S.flags.push(f); saveFlags();
+  $('flagBtn').classList.add('on'); $('flagBtn').textContent = 'Đã ghi âm';
+  $('recSend').hidden = true;
+  $('recStatus').innerHTML = '<span class="thanks">Cảm ơn rất nhiều!</span>'
+    + say('Đang tải lên trong nền — bạn cứ làm tiếp nhé.', 'Uploading in the background — carry on.');
+  uploadRec(blob, {clip, syllable, region});
+  setTimeout(closeRecorder, 1000);
+}
+function uploadRec(blob, meta){
+  const r = new FileReader();
+  r.onload = () => {
+    const payload = Object.assign({
+      type:'recording', key: TESTER_KEY, mime: blob.type,
+      by: localStorage.getItem('vn.recname') || '',
+      when: new Date().toISOString(), audio: String(r.result).split(',')[1],
+    }, meta);
+    fetch(FLAG_ENDPOINT, {method:'POST', mode:'no-cors',
+      headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(payload)})
+      .catch(() => {});
   };
-  try{
-    await fetch(FLAG_ENDPOINT, {method:'POST', mode:'no-cors',
-      headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(payload)});
-    const f = {clip: payload.clip, syllable: payload.syllable, region: payload.region,
-               reason: 'recorded', when: payload.when};
-    S.flags = S.flags.filter(x => !(x.clip === f.clip && x.region === f.region));
-    S.flags.push(f); saveFlags();
-    $('flagBtn').classList.add('on'); $('flagBtn').textContent = 'Đã ghi âm';
-    $('recSend').hidden = true;
-    $('recStatus').innerHTML = '<span class="thanks">Cảm ơn rất nhiều!</span>'
-      + say('Người duyệt sẽ kiểm tra bản ghi của bạn.', 'A reviewer will check your recording.');
-    setTimeout(closeRecorder, 2200);
-  }catch(e){
-    $('recStatus').innerHTML = say('Không gửi được. Kiểm tra kết nối mạng rồi thử lại.',
-      'Could not send. Check your connection and try again.');
-    $('recSend').disabled = false;
-  }
+  r.readAsDataURL(blob);
 }
 
 /* ---------- wiring ---------- */
