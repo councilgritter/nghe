@@ -300,7 +300,7 @@ const saveStats = () => localStorage.setItem('vn.stats', JSON.stringify(S.stats)
    FLAG_ENDPOINT at a Google Apps Script web app that collects them centrally.
    Recording a replacement is only offered once an endpoint is set. See
    human-recordings.md for the collector + review-app + install pipeline. */
-const FLAG_ENDPOINT = '';
+const FLAG_ENDPOINT = 'https://script.google.com/macros/s/AKfycbzBUbHGWNp8bzlfJ5Vs0lpg6efDu-z5sNVzPCWbAi6zsPzkRbrLUzxsF6k9oXKJEQjEMQ/exec';
 const TESTER_KEY = '';
 S.flags = JSON.parse(localStorage.getItem('vn.flags') || '[]');
 const saveFlags = () => localStorage.setItem('vn.flags', JSON.stringify(S.flags));
