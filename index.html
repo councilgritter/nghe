@@ -182,7 +182,7 @@ input[type=range]{flex:1;accent-color:var(--amber)}
 
   <div class="verdict">
     <span class="lab" id="lab"></span>
-    <button class="flag" id="flagBtn" hidden>Sai? Báo lỗi</button>
+    <button class="flag" id="flagBtn" hidden>🚩 Sai? Báo lỗi</button>
     <button class="next" id="next" hidden>Next</button>
   </div>
 </div>
@@ -437,7 +437,7 @@ function newQuestion(){
   $('next').hidden = true;
   $('flagBtn').hidden = true;
   $('flagBtn').classList.remove('on');
-  $('flagBtn').textContent = 'Sai? Báo lỗi';
+  $('flagBtn').textContent = '🚩 Sai? Báo lỗi';
   $('lab').textContent = '';
   $('prompt').textContent = 'Listen, then pick what you heard.';
 
@@ -574,7 +574,7 @@ function addFlag(reason){
   saveFlags();
   send(f);
   $('flagBtn').classList.add('on');
-  $('flagBtn').textContent = 'Đã báo';
+  $('flagBtn').textContent = '✓ Đã báo';
   const can = canRecord();
   $('stepReason').hidden = true;
   $('stepThanks').hidden = false;
@@ -712,7 +712,7 @@ function sendRec(){
   const f = {clip, syllable, region, reason: 'recorded', when: new Date().toISOString()};
   S.flags = S.flags.filter(x => !(x.clip === f.clip && x.region === f.region));
   S.flags.push(f); saveFlags();
-  $('flagBtn').classList.add('on'); $('flagBtn').textContent = 'Đã ghi âm';
+  $('flagBtn').classList.add('on'); $('flagBtn').textContent = '✓ Đã ghi âm';
   $('recSend').hidden = true;
   $('recStatus').innerHTML = '<span class="thanks">Cảm ơn rất nhiều!</span>'
     + say('Đang tải lên trong nền — bạn cứ làm tiếp nhé.', 'Uploading in the background — carry on.');
