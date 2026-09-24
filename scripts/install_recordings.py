@@ -57,8 +57,12 @@ def post(payload):
         return r.read()
 
 
-def encode(src, out):
-    subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', src, '-af', FILTER,
+def encode(src, out, crop_start=None, crop_end=None):
+    filt = FILTER
+    if crop_start is not None and crop_end is not None and crop_end > crop_start:
+        # crop to the reviewer's selection first, then trim/normalise/pad as usual
+        filt = f'atrim=start={crop_start}:end={crop_end},asetpts=PTS-STARTPTS,' + FILTER
+    subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', src, '-af', filt,
                     '-ac', '1', '-ar', '24000', '-c:a', 'libmp3lame', '-b:a', '64k', out],
                    check=True)
 
@@ -78,7 +82,7 @@ def main():
             with tempfile.NamedTemporaryFile(suffix='.' + ext, delete=False) as tf:
                 tf.write(raw); src = tf.name
             out = src + '.mp3'
-            encode(src, out)
+            encode(src, out, r.get('cropStart'), r.get('cropEnd'))
             key = f"{r['region']}/{r['clip']}.mp3"
             s3.upload_file(out, BUCKET, key, ExtraArgs={'ContentType': 'audio/mpeg'})
             os.remove(src); os.remove(out)

@@ -24,7 +24,7 @@ const AUDIO_BASE = 'https://pub-02e9ae05e89a4e768502c5de99c7a3d9.r2.dev';
 
 const FLAGS = 'Flags';
 const RECS = 'Recordings';
-const REC_HEADERS = ['when', 'clip', 'region', 'syllable', 'by', 'mime', 'fileId', 'approved', 'installed'];
+const REC_HEADERS = ['when', 'clip', 'region', 'syllable', 'by', 'mime', 'fileId', 'approved', 'installed', 'crop_start', 'crop_end'];
 const FLAG_HEADERS = ['when', 'clip', 'region', 'syllable', 'reason'];
 
 
@@ -99,9 +99,14 @@ function getPending() {
   return out;
 }
 
-// called from review.html: value true = approve, false = reject
-function decide(row, approve) {
-  sheet(RECS, REC_HEADERS).getRange(row, 8).setValue(approve ? 'TRUE' : 'REJECTED');
+// called from review.html: approve=true/false; cs/ce are optional crop seconds
+function decide(row, approve, cs, ce) {
+  const sh = sheet(RECS, REC_HEADERS);
+  sh.getRange(row, 8).setValue(approve ? 'TRUE' : 'REJECTED');
+  if (approve && cs != null && ce != null) {
+    sh.getRange(row, 10).setValue(cs);   // crop_start
+    sh.getRange(row, 11).setValue(ce);   // crop_end
+  }
   return true;
 }
 
@@ -113,7 +118,9 @@ function approvedQueue() {
   for (let i = 1; i < rows.length; i++) {
     const r = rows[i];
     if (String(r[7]).toUpperCase() === 'TRUE' && r[8] === '') {
-      out.push({ row: i + 1, clip: r[1], region: r[2], syllable: r[3] });
+      out.push({ row: i + 1, clip: r[1], region: r[2], syllable: r[3],
+                 cropStart: r[9] === '' ? null : Number(r[9]),
+                 cropEnd:   r[10] === '' ? null : Number(r[10]) });
     }
   }
   return out;

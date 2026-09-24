@@ -7,19 +7,30 @@
   :root{ --ink:#101726; --slate:#1a2434; --edge:#2b3a50; --muted:#8496ae;
          --amber:#f0b429; --ok:#43a67c; --no:#d9534a; }
   body{ margin:0; background:var(--ink); color:#e6ecf5; font-family:system-ui,-apple-system,'Segoe UI',sans-serif; }
-  .wrap{ max-width:620px; margin:0 auto; padding:20px 16px 60px; }
+  .wrap{ max-width:660px; margin:0 auto; padding:20px 16px 60px; }
   h1{ font-size:20px; font-weight:800; margin:0 0 4px; }
   .sub{ color:var(--muted); font-size:13px; margin:0 0 20px; }
   .card{ background:var(--slate); border:1px solid var(--edge); border-radius:14px; padding:16px; margin-bottom:14px; }
   .syl{ font-size:30px; font-weight:600; color:var(--ok); }
   .meta{ color:var(--muted); font-size:12px; margin:2px 0 12px; }
-  .pair{ display:flex; gap:16px; flex-wrap:wrap; margin-bottom:12px; }
-  .pair > div{ flex:1; min-width:220px; }
   .lbl{ font-size:12px; color:var(--muted); margin-bottom:4px; }
   audio{ width:100%; }
+  .crop{ margin-bottom:4px; }
+  .wave{ position:relative; height:80px; background:var(--ink); border:1px solid var(--edge);
+         border-radius:8px; overflow:hidden; touch-action:none; user-select:none; }
+  .wave canvas{ display:block; width:100%; height:100%; }
+  .shade{ position:absolute; top:0; bottom:0; background:rgba(16,23,38,.68); pointer-events:none; }
+  .pin{ position:absolute; top:0; bottom:0; width:14px; margin-left:-7px; cursor:ew-resize; touch-action:none; }
+  .pin::before{ content:''; position:absolute; left:6px; top:0; bottom:0; width:2px; background:var(--amber); }
+  .pin::after{ content:''; position:absolute; left:1px; top:50%; width:12px; height:22px; margin-top:-11px;
+               background:var(--amber); border-radius:3px; }
+  .croprow{ display:flex; align-items:center; gap:12px; margin-top:8px; }
+  .playSel{ flex:0 0 auto; padding:8px 14px; border-radius:8px; border:1px solid var(--edge);
+            background:none; color:inherit; font:inherit; cursor:pointer; }
+  .times{ color:var(--muted); font-size:12px; font-variant-numeric:tabular-nums; }
   .row{ display:flex; gap:10px; }
-  button{ flex:1; padding:12px; border-radius:10px; border:1px solid var(--edge); font:inherit;
-          color:inherit; background:none; cursor:pointer; font-size:15px; }
+  .row button{ flex:1; padding:12px; border-radius:10px; border:1px solid var(--edge); font:inherit;
+               color:inherit; background:none; cursor:pointer; font-size:15px; }
   .ok{ background:var(--ok); border-color:var(--ok); color:#04241a; font-weight:600; }
   .no{ border-color:var(--no); color:var(--no); }
   .empty,.msg{ color:var(--muted); font-size:14px; }
@@ -28,49 +39,133 @@
 <body>
 <div class="wrap">
   <h1>Review recordings</h1>
-  <p class="sub">Play the AI original next to the tester's recording. Approve if the recording
-     is a correct, clear pronunciation in the right accent; reject if not. Approved ones get
-     installed on the next batch run.</p>
+  <p class="sub">Play the AI original next to the tester's take. Drag the amber pins to crop out
+     mistakes or noise, preview the selection, then Approve. Leaving the pins at the edges keeps
+     the whole clip (silence at the ends is trimmed automatically on install).</p>
   <div id="list"><p class="msg">Loading…</p></div>
 </div>
 <script>
 function esc(s){ return String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 
+let _ctx;
+function ac(){ _ctx = _ctx || new (window.AudioContext || window.webkitAudioContext)(); return _ctx; }
+function b64buf(dataUri){
+  const b = atob(dataUri.split(',')[1]);
+  const u = new Uint8Array(b.length);
+  for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i);
+  return u.buffer;
+}
+
+// draw the waveform, wire the pins + preview; returns getCrop() (or null if decode failed)
+async function makeCropper(card, src){
+  let buf;
+  try { buf = await ac().decodeAudioData(b64buf(src)); }
+  catch (e) { return null; }
+  const dur = buf.duration;
+  const wave = card.querySelector('.wave');
+  const canvas = card.querySelector('canvas');
+  const W = Math.max(300, wave.clientWidth), H = 80;
+  canvas.width = W; canvas.height = H;
+  const g = canvas.getContext('2d');
+  const data = buf.getChannelData(0);
+  const step = Math.max(1, Math.floor(data.length / W));
+  g.fillStyle = '#8496ae';
+  for (let x = 0; x < W; x++){
+    let mn = 1, mx = -1;
+    for (let j = 0; j < step; j++){ const v = data[x * step + j] || 0; if (v < mn) mn = v; if (v > mx) mx = v; }
+    const y1 = (1 - mx) * H / 2, y2 = (1 - mn) * H / 2;
+    g.fillRect(x, y1, 1, Math.max(1, y2 - y1));
+  }
+  let start = 0, end = dur;
+  const pinS = card.querySelector('.pinS'), pinE = card.querySelector('.pinE');
+  const shL = card.querySelector('.shL'), shR = card.querySelector('.shR');
+  const times = card.querySelector('.times');
+  function layout(){
+    const ps = start / dur * 100, pe = end / dur * 100;
+    pinS.style.left = ps + '%'; pinE.style.left = pe + '%';
+    shL.style.left = '0'; shL.style.width = ps + '%';
+    shR.style.left = pe + '%'; shR.style.width = (100 - pe) + '%';
+    times.textContent = start.toFixed(2) + 's – ' + end.toFixed(2) + 's  (' + (end - start).toFixed(2) + 's)';
+  }
+  layout();
+  function drag(pin, isStart){
+    pin.addEventListener('pointerdown', e => {
+      e.preventDefault(); pin.setPointerCapture(e.pointerId);
+      const rect = wave.getBoundingClientRect();
+      const move = ev => {
+        let t = (ev.clientX - rect.left) / rect.width * dur;
+        t = Math.max(0, Math.min(dur, t));
+        if (isStart) start = Math.min(t, end - 0.05); else end = Math.max(t, start + 0.05);
+        layout();
+      };
+      const up = () => { pin.removeEventListener('pointermove', move); pin.removeEventListener('pointerup', up); };
+      pin.addEventListener('pointermove', move);
+      pin.addEventListener('pointerup', up);
+    });
+  }
+  drag(pinS, true); drag(pinE, false);
+  let playing;
+  card.querySelector('.playSel').addEventListener('click', () => {
+    if (playing) { try { playing.stop(); } catch (e) {} }
+    const s = ac().createBufferSource(); s.buffer = buf; s.connect(ac().destination);
+    ac().resume(); s.start(0, start, Math.max(0.02, end - start)); playing = s;
+  });
+  return () => (start <= 0.02 && end >= dur - 0.02)
+    ? null                                             // whole clip → no crop
+    : { start: +start.toFixed(3), end: +end.toFixed(3) };
+}
+
 function render(items){
   const list = document.getElementById('list');
-  if(!items.length){ list.innerHTML = '<p class="empty">Nothing pending. All caught up.</p>'; return; }
+  if (!items.length){ list.innerHTML = '<p class="empty">Nothing pending. All caught up.</p>'; return; }
   list.innerHTML = '';
   items.forEach(it => {
     const c = document.createElement('div');
     c.className = 'card';
     c.innerHTML =
       '<div class="syl">' + esc(it.syllable) + '</div>' +
-      '<div class="meta">' + esc(it.region) + ' · ' + esc(it.clip) +
-        (it.by ? ' · by ' + esc(it.by) : '') + '</div>' +
-      '<div class="pair">' +
-        '<div><div class="lbl">AI original</div><audio controls src="' + it.aiUrl + '"></audio></div>' +
-        '<div><div class="lbl">Tester recording</div>' +
-          (it.src ? '<audio controls src="' + it.src + '"></audio>' : '<span class="msg">audio missing</span>') +
+      '<div class="meta">' + esc(it.region) + ' · ' + esc(it.clip) + (it.by ? ' · by ' + esc(it.by) : '') + '</div>' +
+      '<div class="lbl">AI original (current clip)</div>' +
+      '<audio controls src="' + it.aiUrl + '"></audio>' +
+      '<div class="lbl" style="margin-top:12px">Tester recording — drag the pins to crop</div>' +
+      '<div class="crop">' +
+        '<div class="wave">' +
+          '<canvas></canvas>' +
+          '<div class="shade shL"></div><div class="shade shR"></div>' +
+          '<div class="pin pinS"></div><div class="pin pinE"></div>' +
         '</div>' +
+        '<div class="croprow"><button class="playSel">▶ Play selection</button><span class="times"></span></div>' +
       '</div>' +
-      '<div class="row">' +
+      '<div class="row" style="margin-top:12px">' +
         '<button class="ok">Approve</button>' +
         '<button class="no">Reject</button>' +
       '</div>';
-    const [approve, reject] = c.querySelectorAll('button');
-    approve.onclick = () => decide(c, it.row, true);
-    reject.onclick  = () => decide(c, it.row, false);
     list.appendChild(c);
+
+    let getCrop = () => null;
+    if (it.src){
+      makeCropper(c, it.src).then(fn => {
+        if (fn) getCrop = fn;
+        else c.querySelector('.crop').innerHTML = '<audio controls src="' + it.src + '"></audio>';
+      });
+    } else {
+      c.querySelector('.crop').innerHTML = '<span class="empty">audio missing</span>';
+    }
+
+    const [approve, reject] = c.querySelectorAll('.row button');
+    approve.onclick = () => submit(c, it.row, true, getCrop());
+    reject.onclick  = () => submit(c, it.row, false, null);
   });
 }
 
-function decide(card, row, approve){
+function submit(card, row, approve, crop){
   card.querySelectorAll('button').forEach(b => b.disabled = true);
   card.style.opacity = .5;
+  const cs = crop ? crop.start : null, ce = crop ? crop.end : null;
   google.script.run
-    .withSuccessHandler(() => { card.remove(); if(!document.querySelector('.card')) render([]); })
+    .withSuccessHandler(() => { card.remove(); if (!document.querySelector('.card')) render([]); })
     .withFailureHandler(() => { card.style.opacity = 1; card.querySelectorAll('button').forEach(b => b.disabled = false); })
-    .decide(row, approve);
+    .decide(row, approve, cs, ce);
 }
 
 google.script.run
