@@ -311,12 +311,14 @@ const saveHeard = () => localStorage.setItem('vn.heard', JSON.stringify([...S.he
 
 /* ---------- audio ---------- */
 const cache = new Map();
+// clips are served from Cloudflare R2, keyed <region>/<clip>.mp3
+const AUDIO_BASE = 'https://pub-02e9ae05e89a4e768502c5de99c7a3d9.r2.dev';
 function clipUrl(sylIdx){
   const id = S.data.clips[sylIdx];
-  return 'audio/' + S.cfg.region + '/' + id + '.mp3';
+  return AUDIO_BASE + '/' + S.cfg.region + '/' + id + '.mp3';
 }
-// if this accent's clip isn't there yet, quietly fall back to the old flat folder
-function fallbackUrl(sylIdx){ return 'audio/' + S.data.clips[sylIdx] + '.mp3'; }
+// no on-disk fallback any more: a missing clip drops straight to the browser voice
+function fallbackUrl(sylIdx){ return clipUrl(sylIdx); }
 
 function speak(text){
   if(!('speechSynthesis' in window)) return false;
