@@ -6,9 +6,6 @@ on:
   # schedule:                     # uncomment to run automatically, e.g. daily 03:00 UTC
   #   - cron: '0 3 * * *'
 
-permissions:
-  contents: write                 # lets the built-in token push audio back
-
 concurrency: install-recordings   # never two installs at once
 
 jobs:
@@ -25,30 +22,14 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Fetch and install approved recordings
+      - run: pip install boto3
+
+      - name: Fetch approved recordings and upload to R2
         env:
-          COLLECTOR_URL: ${{ secrets.COLLECTOR_URL }}
-          COLLECTOR_KEY: ${{ secrets.COLLECTOR_KEY }}
+          COLLECTOR_URL:        ${{ secrets.COLLECTOR_URL }}
+          COLLECTOR_KEY:        ${{ secrets.COLLECTOR_KEY }}
+          R2_ENDPOINT:          ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET:            ${{ secrets.R2_BUCKET }}
+          R2_ACCESS_KEY_ID:     ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
         run: python scripts/install_recordings.py
-
-      - name: Commit and push
-        id: push
-        run: |
-          git config user.name  "nghe-recordings-bot"
-          git config user.email "actions@users.noreply.github.com"
-          git add audio
-          if git diff --cached --quiet; then
-            echo "installed=false" >> "$GITHUB_OUTPUT"
-            echo "nothing new to install"
-          else
-            git commit -m "Install approved human recordings"
-            git push
-            echo "installed=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Mark installed in the sheet
-        if: steps.push.outputs.installed == 'true'
-        env:
-          COLLECTOR_URL: ${{ secrets.COLLECTOR_URL }}
-          COLLECTOR_KEY: ${{ secrets.COLLECTOR_KEY }}
-        run: python scripts/install_recordings.py --mark

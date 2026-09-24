@@ -1,28 +1,31 @@
 #!/usr/bin/env python3
 """
-Install approved human recordings over the AI clips.
+Install approved human recordings over the AI clips — straight into Cloudflare R2.
 
-Run by .github/workflows/install-recordings.yml, but works locally too.
-It talks to the collector (apps_script/collector.gs) over HTTP — no Google Drive
-mount needed — so it runs anywhere with ffmpeg and internet.
-
-Two modes:
-    python scripts/install_recordings.py          # fetch approved, install, list rows
-    python scripts/install_recordings.py --mark    # tell the collector they're installed
+Run by .github/workflows/install-recordings.yml. It talks to the collector
+(apps_script/collector.gs) over HTTP for the approved queue and the audio, and
+uploads each processed clip to the R2 bucket, overwriting the AI object at
+<region>/<clip>.mp3. No git, no commit — the app serves from R2.
 
 Env:
-    COLLECTOR_URL   the Apps Script /exec URL
-    COLLECTOR_KEY   optional shared key (matches KEY in collector.gs)
+    COLLECTOR_URL          the Apps Script /exec URL
+    COLLECTOR_KEY          optional shared key (matches KEY in collector.gs)
+    R2_ENDPOINT            https://<accountid>.r2.cloudflarestorage.com  (S3 endpoint, not r2.dev)
+    R2_BUCKET              e.g. nghe-audio
+    R2_ACCESS_KEY_ID       an R2 API token with Object Read & Write on the bucket
+    R2_SECRET_ACCESS_KEY   its secret
 
-Each approved recording is trimmed, loudness-matched and padded to look like the
-generated clips, then written to audio/<region>/<clip>.mp3 by clip_id + region —
-so an approved Southern take only ever replaces the Southern clip.
+Each recording is trimmed, loudness-matched and padded to look like the generated
+clips, then uploaded to <region>/<clip>.mp3 — so an approved Southern take only
+ever replaces the Southern clip.
 """
 import base64, json, os, subprocess, sys, tempfile, urllib.parse, urllib.request
 
+import boto3  # noqa: E402
+
 URL = os.environ.get('COLLECTOR_URL', '').rstrip('/')
 KEY = os.environ.get('COLLECTOR_KEY', '')
-ROWS_FILE = 'installed_rows.json'
+BUCKET = os.environ['R2_BUCKET']
 
 # trim silence, match loudness to the AI clips, pad 0.5s each side, encode like them
 FILTER = ('silenceremove=start_periods=1:start_threshold=-40dB:start_silence=0.05,'
@@ -31,6 +34,13 @@ FILTER = ('silenceremove=start_periods=1:start_threshold=-40dB:start_silence=0.0
           'areverse,'
           'loudnorm=I=-16:TP=-1.5:LRA=7,'
           'adelay=500,apad=pad_dur=0.5')
+
+
+def r2():
+    return boto3.client('s3', endpoint_url=os.environ['R2_ENDPOINT'],
+                        aws_access_key_id=os.environ['R2_ACCESS_KEY_ID'],
+                        aws_secret_access_key=os.environ['R2_SECRET_ACCESS_KEY'],
+                        region_name='auto')
 
 
 def get(params):
@@ -53,9 +63,10 @@ def encode(src, out):
                    check=True)
 
 
-def install():
+def main():
     if not URL:
         sys.exit('COLLECTOR_URL is not set')
+    s3 = r2()
     queue = get({'approved': '1'})
     print(f'{len(queue)} approved recording(s) to install', flush=True)
     done = []
@@ -66,28 +77,19 @@ def install():
             ext = 'm4a' if 'mp4' in (rec.get('mime') or '') else 'webm'
             with tempfile.NamedTemporaryFile(suffix='.' + ext, delete=False) as tf:
                 tf.write(raw); src = tf.name
-            outdir = os.path.join('audio', r['region'])
-            os.makedirs(outdir, exist_ok=True)
-            out = os.path.join(outdir, f"{r['clip']}.mp3")
+            out = src + '.mp3'
             encode(src, out)
-            os.remove(src)
+            key = f"{r['region']}/{r['clip']}.mp3"
+            s3.upload_file(out, BUCKET, key, ExtraArgs={'ContentType': 'audio/mpeg'})
+            os.remove(src); os.remove(out)
             done.append(r['row'])
-            print(f"  installed {r['syllable']} -> {out}", flush=True)
+            print(f"  installed {r['syllable']} -> {key}", flush=True)
         except Exception as e:
             print(f"  FAILED row {r.get('row')} {r.get('clip')}: {e}", file=sys.stderr, flush=True)
-    json.dump(done, open(ROWS_FILE, 'w'))
-    print(f'{len(done)} installed; rows saved to {ROWS_FILE}', flush=True)
-
-
-def mark():
-    if not os.path.exists(ROWS_FILE):
-        print('no rows to mark'); return
-    rows = json.load(open(ROWS_FILE))
-    if not rows:
-        print('no rows to mark'); return
-    post({'type': 'installed', 'rows': rows})
-    print(f'marked {len(rows)} row(s) installed')
+    if done:
+        post({'type': 'installed', 'rows': done})
+    print(f'{len(done)} installed and marked', flush=True)
 
 
 if __name__ == '__main__':
-    mark() if '--mark' in sys.argv else install()
+    main()
