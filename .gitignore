@@ -3,3 +3,4 @@ qc_report.csv
 __pycache__/
 *.pyc
 .DS_Store
+audio/
