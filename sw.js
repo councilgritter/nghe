@@ -3,7 +3,7 @@
 // cached the first time each is heard, so the app still works offline.
 // Bump SHELL/CLIPS when the caching logic changes so installed copies drop the old cache.
 const SHELL = 'nghe-shell-v3';
-const CLIPS = 'nghe-clips-v2';
+const CLIPS = 'nghe-clips-v3';
 const FILES = ['./', 'index.html', 'data.json', 'manifest.webmanifest', 'icon.svg'];
 
 // where the audio lives now — clips from this host are cached like local /audio/ used to be
@@ -24,22 +24,20 @@ self.addEventListener('fetch', e => {
   const isClip = url.hostname === AUDIO_HOST ||
                  (url.origin === location.origin && url.pathname.includes('/audio/'));
 
-  if (isClip) {                                          // clips: cache-first, keep forever
+  if (isClip) {                                          // clips: stale-while-revalidate
     if (e.request.headers.has('range')) return;          // let range requests pass through uncached
-    e.respondWith(caches.open(CLIPS).then(async c => {
+    e.respondWith((async () => {
+      const c = await caches.open(CLIPS);
       const hit = await c.match(e.request);
-      if (hit) return hit;
-      try {
-        const res = await fetch(e.request);
+      // always refetch in the background so a re-recorded clip refreshes next time
+      const net = fetch(e.request).then(res => {
         // cache full responses (same-origin ok, or cross-origin opaque); skip 206 partials
-        if (res && res.status !== 206 && (res.ok || res.type === 'opaque')) {
-          c.put(e.request, res.clone());
-        }
+        if (res && res.status !== 206 && (res.ok || res.type === 'opaque')) c.put(e.request, res.clone());
         return res;
-      } catch (err) {
-        return hit || Response.error();
-      }
-    }));
+      }).catch(() => null);
+      e.waitUntil(net);                                  // keep the worker alive to finish it
+      return hit || (await net) || Response.error();
+    })());
     return;
   }
 
