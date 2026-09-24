@@ -18,8 +18,9 @@
 // review page / install queue require ?key=KEY. Leave '' to accept anything.
 const KEY = '';
 
-// Where the AI clips live, so the review page can play the original alongside.
-const PAGES_BASE = 'https://councilgritter.github.io/nghe/audio';
+// Where the clips live (Cloudflare R2), so the review page can play the current
+// clip alongside the tester's take. Keyed <region>/<clip>.mp3.
+const AUDIO_BASE = 'https://pub-02e9ae05e89a4e768502c5de99c7a3d9.r2.dev';
 
 const FLAGS = 'Flags';
 const RECS = 'Recordings';
@@ -91,7 +92,7 @@ function getPending() {
     } catch (err) { b64 = ''; }
     out.push({
       row: i + 1, clip: r[1], region: r[2], syllable: r[3], by: r[4],
-      aiUrl: `${PAGES_BASE}/${r[2]}/${r[1]}.mp3`,
+      aiUrl: `${AUDIO_BASE}/${r[2]}/${r[1]}.mp3`,
       src: b64 ? `data:${mime};base64,${b64}` : ''
     });
   }
