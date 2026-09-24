@@ -2,9 +2,9 @@ name: Install approved recordings
 
 # Run it by hand from the Actions tab (Run workflow), or on a schedule.
 on:
-  workflow_dispatch:
-  # schedule:                     # uncomment to run automatically, e.g. daily 03:00 UTC
-  #   - cron: '0 3 * * *'
+  workflow_dispatch:              # still runnable by hand from the Actions tab
+  schedule:
+    - cron: '0 * * * *'           # and automatically at the top of every hour
 
 concurrency: install-recordings   # never two installs at once
 
