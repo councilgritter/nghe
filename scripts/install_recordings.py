@@ -29,7 +29,8 @@ BUCKET = os.environ['R2_BUCKET']
 
 # match loudness first (so quiet takes get boosted), THEN trim silence at a gentle
 # threshold (so quiet speech survives), then pad 0.5s each side.
-FILTER = ('loudnorm=I=-16:TP=-1.5:LRA=7,'
+# I is the loudness target in LUFS — less negative = louder (-14 ≈ a few LU hotter).
+FILTER = ('loudnorm=I=-14:TP=-1.5:LRA=7,'
           'silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0.05,'
           'areverse,'
           'silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0.05,'
