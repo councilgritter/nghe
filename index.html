@@ -485,10 +485,9 @@ function answer(i, btn){
   const c = S.data.contrasts[k];
   $('lab').innerHTML = (ok ? 'Right. ' : 'It was <b>' + S.data.syllables[target] + '</b>. ')
     + c.label.replace(' / ', ' vs ');
-  $('prompt').textContent = 'Tap any tile to hear it.';
+  $('prompt').textContent = 'Tap any tile to compare, then Next.';
   $('next').hidden = false;
   $('flagBtn').hidden = false;
-  if(ok) setTimeout(() => { if(S.answered && !panelsOpen()) newQuestion(); }, 2800);
   paintStrip();
 }
 
