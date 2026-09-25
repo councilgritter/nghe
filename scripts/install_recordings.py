@@ -19,7 +19,7 @@ Each recording is trimmed, loudness-matched and padded to look like the generate
 clips, then uploaded to <region>/<clip>.mp3 — so an approved Southern take only
 ever replaces the Southern clip.
 """
-import base64, json, os, subprocess, sys, tempfile, time, urllib.parse, urllib.request
+import base64, json, os, re, subprocess, sys, tempfile, time, urllib.parse, urllib.request
 
 import boto3  # noqa: E402
 
@@ -27,13 +27,25 @@ URL = os.environ.get('COLLECTOR_URL', '').rstrip('/')
 KEY = os.environ.get('COLLECTOR_KEY', '')
 BUCKET = os.environ['R2_BUCKET']
 
-# trim silence, match loudness to the AI clips, pad 0.5s each side, encode like them
-FILTER = ('silenceremove=start_periods=1:start_threshold=-40dB:start_silence=0.05,'
+# match loudness first (so quiet takes get boosted), THEN trim silence at a gentle
+# threshold (so quiet speech survives), then pad 0.5s each side.
+FILTER = ('loudnorm=I=-16:TP=-1.5:LRA=7,'
+          'silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0.05,'
           'areverse,'
-          'silenceremove=start_periods=1:start_threshold=-40dB:start_silence=0.05,'
+          'silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0.05,'
           'areverse,'
-          'loudnorm=I=-16:TP=-1.5:LRA=7,'
           'adelay=500,apad=pad_dur=0.5')
+
+# a finished clip should peak near 0 dB; anything this quiet is effectively silence
+MIN_PEAK_DB = -15.0
+
+
+def peak_db(path):
+    """Loudest sample in dBFS, or None if it couldn't be measured."""
+    out = subprocess.run(['ffmpeg', '-i', path, '-af', 'volumedetect', '-f', 'null', '-'],
+                         capture_output=True, text=True).stderr
+    m = re.search(r'max_volume:\s*(-?\d+(?:\.\d+)?) dB', out)
+    return float(m.group(1)) if m else None
 
 
 def r2():
@@ -98,10 +110,18 @@ def main():
             out = src + '.mp3'
             encode(src, out, r.get('cropStart'), r.get('cropEnd'))
             key = f"{r['region']}/{r['clip']}.mp3"
+            pk = peak_db(out)
+            if pk is None or pk < MIN_PEAK_DB:
+                # too quiet after processing — don't overwrite the AI clip with silence.
+                # Left un-marked so it stays pending; re-record it louder.
+                print(f"  SKIPPED (near-silent, peak {pk} dB): {r['syllable']} {key} — AI clip kept",
+                      file=sys.stderr, flush=True)
+                os.remove(src); os.remove(out)
+                continue
             s3.upload_file(out, BUCKET, key, ExtraArgs={'ContentType': 'audio/mpeg'})
             os.remove(src); os.remove(out)
             done.append(r['row'])
-            print(f"  installed {r['syllable']} -> {key}", flush=True)
+            print(f"  installed {r['syllable']} -> {key}  (peak {pk} dB)", flush=True)
         except Exception as e:
             print(f"  FAILED row {r.get('row')} {r.get('clip')}: {e}", file=sys.stderr, flush=True)
     if done:
