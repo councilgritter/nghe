@@ -19,7 +19,7 @@ Each recording is trimmed, loudness-matched and padded to look like the generate
 clips, then uploaded to <region>/<clip>.mp3 — so an approved Southern take only
 ever replaces the Southern clip.
 """
-import base64, json, os, subprocess, sys, tempfile, urllib.parse, urllib.request
+import base64, json, os, subprocess, sys, tempfile, time, urllib.parse, urllib.request
 
 import boto3  # noqa: E402
 
@@ -43,10 +43,24 @@ def r2():
                         region_name='auto')
 
 
-def get(params):
+def get(params, tries=4):
+    # Apps Script occasionally answers a GET with a redirect/HTML interstitial
+    # instead of JSON; retry a few times and surface the body if it never parses.
     q = urllib.parse.urlencode({**params, **({'key': KEY} if KEY else {})})
-    with urllib.request.urlopen(f'{URL}?{q}', timeout=60) as r:
-        return json.load(r)
+    last = None
+    for i in range(tries):
+        try:
+            with urllib.request.urlopen(f'{URL}?{q}', timeout=90) as r:
+                body = r.read().decode('utf-8', 'replace')
+            return json.loads(body)
+        except Exception as e:
+            last = e
+            head = (body[:200] if 'body' in dir() and body else '')
+            print(f'  collector GET {params} attempt {i + 1}/{tries} failed: {e}'
+                  + (f' | response head: {head!r}' if head else ''), file=sys.stderr, flush=True)
+            body = ''
+            time.sleep(4)
+    raise last
 
 
 def post(payload):
@@ -91,8 +105,11 @@ def main():
         except Exception as e:
             print(f"  FAILED row {r.get('row')} {r.get('clip')}: {e}", file=sys.stderr, flush=True)
     if done:
-        post({'type': 'installed', 'rows': done})
-    print(f'{len(done)} installed and marked', flush=True)
+        try:
+            post({'type': 'installed', 'rows': done})
+        except Exception as e:
+            print(f'  uploaded but could not mark installed: {e}', file=sys.stderr, flush=True)
+    print(f'{len(done)} installed', flush=True)
 
 
 if __name__ == '__main__':
